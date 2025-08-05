@@ -20,6 +20,19 @@ dist/
 # Vercel
 .vercel
 
+# Amplify
+amplify/\#current-cloud-backend
+amplify/.config/local-*
+amplify/logs
+amplify/mock-data
+amplify-exports.js
+amplifyconfiguration.json
+amplifyconfiguration.dart
+amplify-build-config.json
+amplify-gradle-config.json
+amplifytools.xcconfig
+.secret-*
+
 # TypeScript
 *.tsbuildinfo
 

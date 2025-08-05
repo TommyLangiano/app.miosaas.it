@@ -4,18 +4,16 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Box, 
-  Grid,
   Typography,
   Card,
-  CardContent,
   Stack,
-  Chip,
   Button,
   Avatar,
   LinearProgress,
   useTheme,
   CircularProgress
 } from '@mui/material';
+import Grid from '@mui/material/Grid2';
 import { 
   IconArrowUpRight,
   IconUsers,
@@ -38,7 +36,7 @@ import { useAuth } from '../../src/hooks/useAuth';
 export default function DashboardPage() {
   const theme = useTheme();
   const router = useRouter();
-  const { user, loading, isAuthenticated, logout } = useAuth();
+  const { loading, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
