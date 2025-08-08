@@ -208,11 +208,11 @@ export class UserManagementService {
         `, [userId, companyId]);
         cleanupResult.rapportini = rapportiniResult.rowCount || 0;
         
-        // Commesse dove è responsabile
+        // Commesse create dall'utente: per soft delete le marchiamo come archiviate
         const commesseResult = await client.query(`
           UPDATE commesse 
-          SET status = 'deleted'
-          WHERE responsible_user_id = $1 AND company_id = $2
+          SET archiviata = true, stato = 'chiusa'
+          WHERE created_by = $1 AND company_id = $2
         `, [userId, companyId]);
         cleanupResult.commesse = commesseResult.rowCount || 0;
         
@@ -233,11 +233,11 @@ export class UserManagementService {
         `, [userId, companyId]);
         cleanupResult.rapportini = rapportiniResult.rowCount || 0;
         
-        // Per le commesse, solo rimuovi il riferimento al responsabile (non elimina la commessa)
+        // Per le commesse create dall'utente, non le eliminiamo: le archiviamo
         const commesseResult = await client.query(`
           UPDATE commesse 
-          SET responsible_user_id = NULL
-          WHERE responsible_user_id = $1 AND company_id = $2
+          SET archiviata = true, stato = 'chiusa'
+          WHERE created_by = $1 AND company_id = $2
         `, [userId, companyId]);
         cleanupResult.commesse = commesseResult.rowCount || 0;
       }
@@ -303,7 +303,7 @@ export class UserManagementService {
         SELECT 
           (SELECT COUNT(*) FROM documents WHERE created_by = $1 AND company_id = $2) as documents_count,
           (SELECT COUNT(*) FROM rapportini WHERE user_id = $1 AND company_id = $2) as rapportini_count,
-          (SELECT COUNT(*) FROM commesse WHERE responsible_user_id = $1 AND company_id = $2) as commesse_count
+          (SELECT COUNT(*) FROM commesse WHERE created_by = $1 AND company_id = $2) as commesse_count
       `, [dbUser.id, dbUser.company_id]);
       
       return {

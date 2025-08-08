@@ -5,10 +5,23 @@ import { authenticateToken, optionalAuth, requireRole } from '../middleware/auth
 
 const router = Router();
 
+// Request estesa con utente
+type AuthedRequest = Request & {
+  user?: {
+    sub?: string;
+    email?: string;
+    companyId?: string;
+    role?: string;
+    tokenType?: string;
+    name?: string;
+    emailVerified?: boolean;
+  };
+};
+
 /**
  * Route protetta che richiede autenticazione
  */
-router.get('/protected', authenticateToken, (req: Request, res: Response) => {
+router.get('/protected', authenticateToken, (req: AuthedRequest, res: Response) => {
   res.status(200).json({
     status: 'success',
     message: 'Accesso autorizzato alla route protetta',
@@ -26,7 +39,7 @@ router.get('/protected', authenticateToken, (req: Request, res: Response) => {
 /**
  * Route con autenticazione opzionale
  */
-router.get('/optional', optionalAuth, (req: Request, res: Response) => {
+router.get('/optional', optionalAuth, (req: AuthedRequest, res: Response) => {
   const isAuthenticated = !!req.user;
   
   res.status(200).json({
@@ -48,7 +61,7 @@ router.get('/optional', optionalAuth, (req: Request, res: Response) => {
 router.get('/admin-only', 
   authenticateToken, 
   requireRole(['admin', 'super_admin']), 
-  (req: Request, res: Response) => {
+  (req: AuthedRequest, res: Response) => {
     res.status(200).json({
       status: 'success',
       message: 'Accesso autorizzato all\'area admin',
@@ -65,7 +78,7 @@ router.get('/admin-only',
 /**
  * Route per ottenere le informazioni dell'utente corrente
  */
-router.get('/me', authenticateToken, (req: Request, res: Response) => {
+router.get('/me', authenticateToken, (req: AuthedRequest, res: Response) => {
   res.status(200).json({
     status: 'success',
     data: {
@@ -84,7 +97,7 @@ router.get('/me', authenticateToken, (req: Request, res: Response) => {
 /**
  * Route di test per validare il token senza altre operazioni
  */
-router.post('/validate-token', authenticateToken, (req: Request, res: Response) => {
+router.post('/validate-token', authenticateToken, (req: AuthedRequest, res: Response) => {
   res.status(200).json({
     status: 'success',
     message: 'Token valido',

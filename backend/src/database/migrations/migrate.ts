@@ -2,13 +2,17 @@
 
 import { db } from '../../config/db';
 import Migration001CreateGlobalTables from './001-create-global-tables';
+import Migration002RebuildCommesse from './002-rebuild-commesse';
+import Migration003ForceRebuildCommesse from './003-force-rebuild-commesse';
 
 /**
  * Sistema di migrazioni per MioSaaS
  */
 class MigrationRunner {
   private migrations = [
-    Migration001CreateGlobalTables
+    Migration001CreateGlobalTables,
+    Migration002RebuildCommesse,
+    Migration003ForceRebuildCommesse
   ];
 
   /**

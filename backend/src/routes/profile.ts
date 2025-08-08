@@ -5,6 +5,19 @@ import { CognitoIdentityProviderClient, AdminUpdateUserAttributesCommand } from 
 
 const router = Router();
 
+// Tipi request con utente autenticato
+type AuthedRequest = Request & {
+  user?: {
+    dbUserId?: string;
+    email?: string;
+    name?: string;
+    surname?: string;
+    given_name?: string;
+    family_name?: string;
+    cognitoUsername?: string;
+  };
+};
+
 // Config Cognito (in produzione spostare in config centralizzata)
 const COGNITO_CONFIG = {
   userPoolId: 'eu-north-1_MVwkbI87K',
@@ -14,7 +27,7 @@ const COGNITO_CONFIG = {
 const cognitoClient = new CognitoIdentityProviderClient({ region: COGNITO_CONFIG.region });
 
 // GET /api/profile/me → dati ufficiali utente loggato
-router.get('/me', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+router.get('/me', authenticateToken, async (req: AuthedRequest, res: Response): Promise<void> => {
   try {
     const user = req.user!;
     if (user.dbUserId) {
@@ -50,13 +63,14 @@ router.get('/me', authenticateToken, async (req: Request, res: Response): Promis
         last_login: null
       }
     });
-  } catch (error: any) {
-    res.status(500).json({ status: 'error', message: error.message || 'Errore interno' });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Errore interno';
+    res.status(500).json({ status: 'error', message });
   }
 });
 
 // PUT /api/profile/me → aggiorna profilo utente loggato
-router.put('/me', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+router.put('/me', authenticateToken, async (req: AuthedRequest, res: Response): Promise<void> => {
   try {
     const user = req.user!;
     if (!user.dbUserId) {
@@ -68,7 +82,7 @@ router.put('/me', authenticateToken, async (req: Request, res: Response): Promis
     // Conserva l'email corrente per usarla come Username su Cognito (se diverso dall'email nuova)
     const currentDb = await GlobalUsersService.getById(user.dbUserId);
     const oldEmail = currentDb?.email || user.email;
-    const cognitoUsername = (user as any).cognitoUsername || oldEmail;
+    const cognitoUsername = user.cognitoUsername || oldEmail;
 
     // 1) Aggiorna DB
     const updated = await GlobalUsersService.updateProfile(user.dbUserId, { name, surname, email, phone, avatar_url });
@@ -93,13 +107,15 @@ router.put('/me', authenticateToken, async (req: Request, res: Response): Promis
         });
         await cognitoClient.send(cmd);
       }
-    } catch (e: any) {
-      cognitoUpdate = { success: false, message: e?.message || 'Errore aggiornamento Cognito' };
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Errore aggiornamento Cognito';
+      cognitoUpdate = { success: false, message };
     }
 
     res.json({ status: 'success', data: updated, cognito: cognitoUpdate });
-  } catch (error: any) {
-    res.status(400).json({ status: 'error', message: error.message || 'Aggiornamento profilo fallito' });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Aggiornamento profilo fallito';
+    res.status(400).json({ status: 'error', message });
   }
 });
 

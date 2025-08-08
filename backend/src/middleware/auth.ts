@@ -2,29 +2,45 @@ import { Request, Response, NextFunction } from 'express';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
 import { GlobalUsersService } from '../services/global-database.service';
 
-// Estendere l'interfaccia Request per includere user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        sub: string;
-        email: string;
-        companyId?: string;
-        role?: string;
-        tokenType?: string;
-        name?: string;
-        emailVerified?: boolean;
-        username?: string;
-        scope?: string;
-        // Campi aggiunti dal DB lookup
-        dbUserId?: string;
-        status?: string;
-        companyName?: string;
-        companySlug?: string;
-        [key: string]: any;
-      };
-    }
-  }
+interface UserInfo {
+  sub: string;
+  tokenType: 'access' | 'id';
+  email?: string;
+  emailVerified?: boolean;
+  name?: string;
+  surname?: string;
+  preferredUsername?: string;
+  username?: string;
+  scope?: string;
+  cognitoUsername?: string;
+  // Campi dal DB
+  dbUserId?: string;
+  companyId?: string;
+  role?: string;
+  status?: string;
+  companyName?: string;
+  companySlug?: string;
+}
+
+type RequestWithUser = Request & { user?: UserInfo };
+
+// Payload minimi che ci interessano dai token Cognito
+interface IdTokenPayload {
+  sub: string;
+  email?: string;
+  email_verified?: boolean;
+  given_name?: string;
+  name?: string;
+  family_name?: string;
+  preferred_username?: string;
+  [key: string]: unknown;
+}
+
+interface AccessTokenPayload {
+  sub: string;
+  username?: string;
+  scope?: string;
+  [key: string]: unknown;
 }
 
 // Configurazione AWS Cognito
@@ -96,15 +112,15 @@ export const authenticateToken = async (
     }
 
     // Tentativo di verifica come Access Token prima
-    let payload;
-    let tokenType = 'access';
+    let payload: IdTokenPayload | AccessTokenPayload;
+    let tokenType: 'access' | 'id' = 'access';
 
     try {
-      payload = await accessTokenVerifier.verify(token);
+      payload = (await accessTokenVerifier.verify(token)) as unknown as AccessTokenPayload;
     } catch (accessError) {
       // Se fallisce come access token, prova come ID token
       try {
-        payload = await idTokenVerifier.verify(token);
+        payload = (await idTokenVerifier.verify(token)) as unknown as IdTokenPayload;
         tokenType = 'id';
       } catch (idError) {
         console.error('Token verification failed:', {
@@ -122,31 +138,37 @@ export const authenticateToken = async (
     }
 
     // Estrai le informazioni dell'utente dal payload
-    const userInfo: any = {
-      sub: payload.sub,
-      tokenType
+    const userInfo: UserInfo = {
+      sub: String(payload.sub),
+      tokenType,
     };
 
     // Per ID token, abbiamo più informazioni dell'utente
     if (tokenType === 'id') {
-      userInfo.email = payload.email;
-      userInfo.emailVerified = payload.email_verified;
-      userInfo.name = payload.given_name || payload.name;
-      userInfo.surname = payload.family_name;
-      userInfo.preferredUsername = payload.preferred_username;
+      const idPayload = payload as IdTokenPayload;
+      userInfo.email = typeof idPayload.email === 'string' ? idPayload.email : undefined;
+      userInfo.emailVerified = typeof idPayload.email_verified === 'boolean' ? idPayload.email_verified : undefined;
+      const givenName = typeof idPayload.given_name === 'string' ? idPayload.given_name : undefined;
+      const name = typeof idPayload.name === 'string' ? idPayload.name : undefined;
+      userInfo.name = givenName || name;
+      userInfo.surname = typeof idPayload.family_name === 'string' ? idPayload.family_name : undefined;
+      userInfo.preferredUsername =
+        typeof idPayload.preferred_username === 'string' ? idPayload.preferred_username : undefined;
       // Cognito username (immutabile) per operazioni Admin*
-      userInfo.cognitoUsername = payload['cognito:username'];
+      const cognitoUsername = idPayload['cognito:username'];
+      userInfo.cognitoUsername = typeof cognitoUsername === 'string' ? cognitoUsername : undefined;
     }
 
     // Per access token, abbiamo informazioni di base
     if (tokenType === 'access') {
-      userInfo.username = payload.username;
-      userInfo.scope = payload.scope;
+      const accessPayload = payload as AccessTokenPayload;
+      userInfo.username = typeof accessPayload.username === 'string' ? accessPayload.username : undefined;
+      userInfo.scope = typeof accessPayload.scope === 'string' ? accessPayload.scope : undefined;
     }
 
     // 🔍 LOOKUP UTENTE REALE NEL DATABASE usando cognito_sub
     try {
-      const dbUser = await GlobalUsersService.getByCognitoSub(payload.sub);
+      const dbUser = await GlobalUsersService.getByCognitoSub(String(payload.sub));
       
       if (!dbUser) {
         console.warn(`🚨 User not found in DB for cognito_sub: ${payload.sub} – proceeding with token-only data`);
@@ -162,7 +184,7 @@ export const authenticateToken = async (
         userInfo.companySlug = dbUser.company_slug;
         
         // Aggiorna last_login usando cognito_sub
-        await GlobalUsersService.updateLastLogin(payload.sub);
+        await GlobalUsersService.updateLastLogin(String(payload.sub));
         
         console.log('✅ User authenticated from DB:', {
           dbUserId: dbUser.id,
@@ -184,7 +206,7 @@ export const authenticateToken = async (
     }
 
     // Aggiungi l'utente all'oggetto request
-    req.user = userInfo;
+    (req as RequestWithUser).user = userInfo;
 
     // Log per debugging (rimuovi in produzione)
     if (process.env.NODE_ENV === 'development') {
@@ -234,7 +256,7 @@ export const optionalAuth = async (
  * Middleware per verificare ruoli specifici
  */
 export const requireRole = (allowedRoles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: RequestWithUser, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({
         status: 'error',
@@ -264,7 +286,7 @@ export const requireRole = (allowedRoles: string[]) => {
 /**
  * Middleware per verificare che l'utente appartenga a una specifica company
  */
-export const requireCompany = (req: Request, res: Response, next: NextFunction): void => {
+export const requireCompany = (req: RequestWithUser, res: Response, next: NextFunction): void => {
   if (!req.user) {
     res.status(401).json({
       status: 'error',
@@ -274,7 +296,7 @@ export const requireCompany = (req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  const companyId = req.params.companyId || req.body.companyId;
+  const companyId = (req.params?.companyId as string | undefined) || (req.body as Record<string, unknown>)?.['companyId'] as string | undefined;
   const userCompanyId = req.user.companyId;
 
   if (!userCompanyId) {
@@ -298,9 +320,11 @@ export const requireCompany = (req: Request, res: Response, next: NextFunction):
   next();
 };
 
-export default {
+const authMiddleware = {
   authenticateToken,
   optionalAuth,
   requireRole,
-  requireCompany
+  requireCompany,
 };
+
+export default authMiddleware;

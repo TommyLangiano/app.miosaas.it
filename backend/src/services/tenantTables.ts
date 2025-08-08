@@ -150,58 +150,30 @@ function createCommesseTableSQL(tableName: string): string {
   return `
     CREATE TABLE IF NOT EXISTS ${tableName} (
       id SERIAL PRIMARY KEY,
-      code VARCHAR(50) UNIQUE NOT NULL,
-      name VARCHAR(255) NOT NULL,
-      description TEXT,
-      client_name VARCHAR(255),
-      client_contact VARCHAR(255),
-      client_phone VARCHAR(50),
-      client_email VARCHAR(255),
-      project_type VARCHAR(100),
-      location VARCHAR(255),
-      start_date DATE,
-      estimated_end_date DATE,
-      actual_end_date DATE,
-      estimated_hours DECIMAL(8,2),
-      actual_hours DECIMAL(8,2) DEFAULT 0,
-      hourly_rate DECIMAL(10,2),
-      fixed_price DECIMAL(12,2),
-      total_amount DECIMAL(12,2),
-      paid_amount DECIMAL(12,2) DEFAULT 0,
-      billing_type VARCHAR(20) DEFAULT 'hourly',
-      payment_terms INTEGER DEFAULT 30,
-      status VARCHAR(50) DEFAULT 'planning',
-      priority VARCHAR(20) DEFAULT 'medium',
-      progress INTEGER DEFAULT 0,
-      manager_id UUID,
-      team_members JSONB DEFAULT '[]',
-      notes TEXT,
-      requirements TEXT,
-      deliverables JSONB DEFAULT '[]',
-      risk_assessment TEXT,
-      documents JSONB DEFAULT '[]',
+      cliente VARCHAR(255) NOT NULL,
+      luogo VARCHAR(255),
+      data_inizio DATE,
+      data_fine DATE,
+      descrizione TEXT,
+      imponibile_commessa DECIMAL(12,2),
+      iva_commessa DECIMAL(12,2),
+      importo_commessa DECIMAL(12,2),
+      archiviata BOOLEAN DEFAULT false,
+      stato VARCHAR(20) NOT NULL DEFAULT 'da_avviare',
       company_id UUID NOT NULL,
       created_by UUID NOT NULL,
       updated_by UUID,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       
-      CONSTRAINT ${tableName}_status_check CHECK (status IN ('planning', 'active', 'on_hold', 'completed', 'cancelled', 'archived')),
-      CONSTRAINT ${tableName}_billing_check CHECK (billing_type IN ('hourly', 'fixed', 'mixed')),
-      CONSTRAINT ${tableName}_priority_check CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
-      CONSTRAINT ${tableName}_progress_check CHECK (progress >= 0 AND progress <= 100),
-      CONSTRAINT ${tableName}_payment_terms_check CHECK (payment_terms > 0)
+      CONSTRAINT ${tableName}_stato_check CHECK (stato IN ('in_corso', 'chiusa', 'da_avviare'))
     );
     
     -- Indici ottimizzati per performance
     CREATE INDEX IF NOT EXISTS idx_${tableName}_company_id ON ${tableName}(company_id);
-    CREATE INDEX IF NOT EXISTS idx_${tableName}_status ON ${tableName}(status);
+    CREATE INDEX IF NOT EXISTS idx_${tableName}_stato ON ${tableName}(stato);
     CREATE INDEX IF NOT EXISTS idx_${tableName}_created_at ON ${tableName}(created_at);
     CREATE INDEX IF NOT EXISTS idx_${tableName}_created_by ON ${tableName}(created_by);
-    CREATE INDEX IF NOT EXISTS idx_${tableName}_code ON ${tableName}(code);
-    CREATE INDEX IF NOT EXISTS idx_${tableName}_dates ON ${tableName}(start_date, estimated_end_date);
-    CREATE INDEX IF NOT EXISTS idx_${tableName}_client ON ${tableName}(client_name);
-    CREATE INDEX IF NOT EXISTS idx_${tableName}_status_priority ON ${tableName}(status, priority);
     
     -- Trigger per aggiornamento automatico timestamp
     CREATE TRIGGER update_${tableName}_updated_at BEFORE UPDATE ON ${tableName}

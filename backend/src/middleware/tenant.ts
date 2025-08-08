@@ -4,44 +4,42 @@ import { db } from '../config/db';
 
 // Interfaccia per i risultati delle query
 interface QueryResult {
-  rows: any[];
+  rows: unknown[];
   rowCount: number | null;
 }
 
 // Interfaccia per filtri di ricerca
 interface QueryFilter {
-  where?: Record<string, any>;
+  where?: Record<string, unknown>;
   orderBy?: string;
   limit?: number;
   offset?: number;
 }
 
-// Estendere l'interfaccia Request per includere db e tenant info
-declare global {
-  namespace Express {
-    interface Request {
-      db?: {
-        pool: Pool;
-        companyId: string;
-        
-        // Metodi tenant-aware per database operations con TABELLE CONDIVISE
-        get: (tableName: string, id: number | string) => Promise<any>;
-        findMany: (tableName: string, filter?: QueryFilter) => Promise<any[]>;
-        insert: (tableName: string, data: Record<string, any>) => Promise<any>;
-        update: (tableName: string, id: number | string, data: Record<string, any>) => Promise<any>;
-        delete: (tableName: string, id: number | string) => Promise<boolean>;
-        
-        // Metodi raw per query personalizzate
-        query: (text: string, params?: any[]) => Promise<QueryResult>;
-        getClient: () => Promise<PoolClient>;
-      };
-      tenant?: {
-        companyId: string;
-        isValidTenant: boolean;
-      };
-    }
-  }
-}
+// Tipi locali per estendere la Request senza usare namespace
+type TenantDb = {
+  pool: Pool;
+  companyId: string;
+  // Metodi tenant-aware per database operations con TABELLE CONDIVISE
+  get: (tableName: string, id: number | string) => Promise<unknown>;
+  findMany: (tableName: string, filter?: QueryFilter) => Promise<unknown[]>;
+  insert: (tableName: string, data: Record<string, unknown>) => Promise<unknown>;
+  update: (
+    tableName: string,
+    id: number | string,
+    data: Record<string, unknown>
+  ) => Promise<unknown>;
+  delete: (tableName: string, id: number | string) => Promise<boolean>;
+  // Metodi raw per query personalizzate
+  query: (text: string, params?: unknown[]) => Promise<QueryResult>;
+  getClient: () => Promise<PoolClient>;
+};
+
+type RequestWithTenant = Request & {
+  db?: TenantDb;
+  tenant?: { companyId: string; isValidTenant: boolean };
+  user?: { companyId?: string; sub?: string; email?: string };
+};
 
 /**
  * Middleware per gestire multi-tenancy con TABELLE CONDIVISE
@@ -49,7 +47,11 @@ declare global {
  * - Isolamento tramite company_id in ogni query
  * - NON crea più tabelle dinamiche per azienda
  */
-export const tenantMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const tenantMiddleware = async (
+  req: RequestWithTenant,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     // Estrai companyId dall'header X-Company-ID o dal token JWT
     const companyId = req.headers['x-company-id'] as string || req.user?.companyId;
@@ -95,7 +97,7 @@ export const tenantMiddleware = async (req: Request, res: Response, next: NextFu
       companyId: companyId,
       
       // Metodo GET - Ottiene un record per ID (con isolamento company_id)
-      get: async (tableName: string, id: number | string): Promise<any> => {
+      get: async (tableName: string, id: number | string): Promise<unknown> => {
         // Valida nome tabella per sicurezza
         const allowedTables = ['documents', 'rapportini', 'commesse'];
         if (!allowedTables.includes(tableName)) {
@@ -108,7 +110,7 @@ export const tenantMiddleware = async (req: Request, res: Response, next: NextFu
       },
 
       // Metodo FIND_MANY - Cerca records con filtri (sempre isolato per company_id)
-      findMany: async (tableName: string, filter: QueryFilter = {}): Promise<any[]> => {
+      findMany: async (tableName: string, filter: QueryFilter = {}): Promise<unknown[]> => {
         // Valida nome tabella per sicurezza
         const allowedTables = ['documents', 'rapportini', 'commesse'];
         if (!allowedTables.includes(tableName)) {
@@ -116,7 +118,7 @@ export const tenantMiddleware = async (req: Request, res: Response, next: NextFu
         }
 
         let query = `SELECT * FROM ${tableName} WHERE company_id = $1`;
-        const params: any[] = [companyId];
+        const params: unknown[] = [companyId];
         let paramIndex = 2;
 
         // Aggiungi condizioni WHERE
@@ -151,7 +153,7 @@ export const tenantMiddleware = async (req: Request, res: Response, next: NextFu
       },
 
       // Metodo INSERT - Crea un nuovo record (company_id automatico)
-      insert: async (tableName: string, data: Record<string, any>): Promise<any> => {
+      insert: async (tableName: string, data: Record<string, unknown>): Promise<unknown> => {
         // Valida nome tabella per sicurezza
         const allowedTables = ['documents', 'rapportini', 'commesse'];
         if (!allowedTables.includes(tableName)) {
@@ -176,7 +178,11 @@ export const tenantMiddleware = async (req: Request, res: Response, next: NextFu
       },
 
       // Metodo UPDATE - Aggiorna un record esistente (con controllo company_id)
-      update: async (tableName: string, id: number | string, data: Record<string, any>): Promise<any> => {
+      update: async (
+        tableName: string,
+        id: number | string,
+        data: Record<string, unknown>
+      ): Promise<unknown> => {
         // Valida nome tabella per sicurezza
         const allowedTables = ['documents', 'rapportini', 'commesse'];
         if (!allowedTables.includes(tableName)) {
@@ -184,7 +190,7 @@ export const tenantMiddleware = async (req: Request, res: Response, next: NextFu
         }
         
         // Rimuovi company_id dai dati di update (non deve essere modificato)
-        const { company_id, ...updateData } = data;
+        const { company_id, ...updateData } = data as Record<string, unknown> & { company_id?: string };
         
         const keys = Object.keys(updateData);
         const values = Object.values(updateData);
@@ -215,7 +221,7 @@ export const tenantMiddleware = async (req: Request, res: Response, next: NextFu
       },
 
       // Metodi raw per query personalizzate
-      query: async (text: string, params?: any[]): Promise<QueryResult> => {
+      query: async (text: string, params?: unknown[]): Promise<QueryResult> => {
         return await db.query(text, params);
       },
 
@@ -246,7 +252,11 @@ export const tenantMiddleware = async (req: Request, res: Response, next: NextFu
  * Middleware per estrarre companyId dall'URL per endpoint di test
  * Utilizzato per gli endpoint /api/tenants/test/:companyId/*
  */
-export const tenantTestMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const tenantTestMiddleware = async (
+  req: RequestWithTenant,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const companyIdOrSlug = req.params.companyId;
     

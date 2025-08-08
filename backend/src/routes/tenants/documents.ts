@@ -6,6 +6,13 @@ import { tenantMiddleware } from '../../middleware/tenant';
 
 const router = Router();
 
+// Tipi locali per evitare errori sul campo `user` (ed altri) su Request
+type AuthedTenantRequest = Request & {
+  user?: { sub: string; email?: string; role?: string };
+  tenant?: { companyId: string };
+  db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: unknown[] }> };
+};
+
 // Applica i middleware di autenticazione e tenant a tutte le rotte
 router.use(authenticateToken);
 router.use(tenantMiddleware);
@@ -15,7 +22,7 @@ router.use(tenantMiddleware);
  * GET /api/tenants/documents
  * Ottiene tutti i documenti del tenant corrente
  */
-router.get('/', async (req: Request, res: Response): Promise<void> => {
+router.get('/', async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     if (!req.db || !req.tenant) {
       res.status(500).json({
@@ -60,11 +67,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
         documentsTable: documentsTable,
         totalDocuments: result.rows.length,
         documents: result.rows,
-        userInfo: {
-          sub: req.user?.sub,
-          email: req.user?.email,
-          role: req.user?.role
-        }
+        userInfo: req.user ? { sub: req.user.sub, email: req.user.email, role: req.user.role } : null
       },
       timestamp: new Date().toISOString()
     });
@@ -84,7 +87,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
  * GET /api/tenants/documents/:documentId
  * Ottiene un documento specifico del tenant
  */
-router.get('/:documentId', async (req: Request, res: Response): Promise<void> => {
+router.get('/:documentId', async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     const documentId = req.params.documentId;
     const documentsTable = 'documents';
@@ -144,7 +147,7 @@ router.get('/:documentId', async (req: Request, res: Response): Promise<void> =>
  * POST /api/tenants/documents
  * Crea un nuovo documento per il tenant
  */
-router.post('/', async (req: Request, res: Response): Promise<void> => {
+router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     const { name, description, file_path, file_size, mime_type, tags, metadata } = req.body;
     
@@ -209,7 +212,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
  * PUT /api/tenants/documents/:documentId
  * Aggiorna un documento del tenant
  */
-router.put('/:documentId', async (req: Request, res: Response): Promise<void> => {
+router.put('/:documentId', async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     const documentId = req.params.documentId;
     const { name, description, tags, metadata } = req.body;
@@ -273,7 +276,7 @@ router.put('/:documentId', async (req: Request, res: Response): Promise<void> =>
  * DELETE /api/tenants/documents/:documentId
  * Elimina (soft delete) un documento del tenant
  */
-router.delete('/:documentId', async (req: Request, res: Response): Promise<void> => {
+router.delete('/:documentId', async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     const documentId = req.params.documentId;
     const documentsTable = 'documents';
@@ -322,7 +325,7 @@ router.delete('/:documentId', async (req: Request, res: Response): Promise<void>
  * GET /api/tenants/documents/stats/summary
  * Ottiene statistiche sui documenti del tenant
  */
-router.get('/stats/summary', async (req: Request, res: Response): Promise<void> => {
+router.get('/stats/summary', async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     const documentsTable = 'documents';
     const companyId = req.tenant!.companyId;
