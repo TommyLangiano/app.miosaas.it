@@ -21,9 +21,11 @@ jobs:
 
       - name: 🔁 Deploy to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ec2-user@api.thechessionsleague.it '
-            cd ~/app.miosaas.it/backend &&
-            git reset --hard &&
-            git pull origin main &&
+          ssh -o StrictHostKeyChecking=no ec2-user@api.thechessionsleague.it "
+            cd ~/app.miosaas.it &&
+            git fetch --all --prune &&
+            git reset --hard origin/main &&
+            git clean -fdx &&
+            cd backend &&
             ./deploy.sh
-          '
+          "
