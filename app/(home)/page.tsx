@@ -9,7 +9,6 @@ import {
   Container, 
   Typography, 
   Button, 
-  Grid,
   Card,
   TextField,
   InputAdornment,
@@ -20,6 +19,7 @@ import {
   FormControlLabel,
   Alert
 } from '@mui/material';
+// rimosso Grid per evitare warning di tipi su versioni diverse di MUI
 import { 
   IconEye, 
   IconEyeOff,
@@ -173,8 +173,8 @@ export default function LoginPage() {
         py: 4
       }}>
         <Container maxWidth="xl">
-        <Grid container justifyContent="center">
-        <Grid component="div" item xs={12} sm={11} md={10} lg={8}>
+        <Box display="flex" justifyContent="center">
+        <Box sx={{ width: '100%', maxWidth: 960 }}>
               <Card elevation={8} sx={{ borderRadius: 3, overflow: 'hidden' }}>
                 <Box sx={{ p: { xs: 2, md: 4 } }}>
                   <Typography variant="h4" sx={{ textAlign: 'center', mb: 4 }}>
@@ -182,8 +182,8 @@ export default function LoginPage() {
                   </Typography>
                 </Box>
               </Card>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </Container>
       </Box>
     );
@@ -198,9 +198,9 @@ export default function LoginPage() {
       py: 4
     }}>
       <Container maxWidth="xl">
-        <Grid container justifyContent="center">
+        <Box display="flex" justifyContent="center">
           {/* @ts-ignore */}
-          <Grid item xs={12} sm={11} md={10} lg={8}>
+          <Box sx={{ width: '100%', maxWidth: 960 }}>
             <Card 
               elevation={8}
               sx={{ 
@@ -466,8 +466,8 @@ export default function LoginPage() {
                 © 2024 MioSaaS - Piattaforma SaaS professionale
                 </Typography>
             </Box>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
         </Container>
       </Box>
   );
