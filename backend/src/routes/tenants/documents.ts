@@ -341,7 +341,13 @@ router.get('/stats/summary', async (req: AuthedTenantRequest, res: Response): Pr
     `;
 
     const result = await req.db!.query(statsQuery);
-    const stats = result.rows[0];
+    const stats = result.rows[0] as {
+      total_documents: string;
+      active_documents: string;
+      deleted_documents: string;
+      total_size: string | null;
+      average_size: string | null;
+    };
 
     res.status(200).json({
       status: 'success',
@@ -352,8 +358,8 @@ router.get('/stats/summary', async (req: AuthedTenantRequest, res: Response): Pr
           totalDocuments: parseInt(stats.total_documents),
           activeDocuments: parseInt(stats.active_documents),
           deletedDocuments: parseInt(stats.deleted_documents),
-          totalSize: parseInt(stats.total_size) || 0,
-          averageSize: Math.round(parseFloat(stats.average_size)) || 0
+          totalSize: stats.total_size ? parseInt(stats.total_size) : 0,
+          averageSize: Math.round(parseFloat(stats.average_size ?? '0')) || 0
         }
       },
       timestamp: new Date().toISOString()

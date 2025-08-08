@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import registerRoutes from './routes/register';
 import documentsRoutes from './routes/tenants/documents';
+import commesseRoutes from './routes/tenants/commesse';
 import testAuthRoutes from './routes/test-auth';
 import userManagementRoutes from './routes/user-management';
 import syncCognitoRoutes from './routes/sync-cognito';
@@ -133,6 +134,7 @@ class App {
             documents: '/api/tenants/documents',
             documentById: '/api/tenants/documents/:id',
             documentsStats: '/api/tenants/documents/stats/summary',
+            commesse: '/api/tenants/commesse',
             examples: '/api/tenants/example',
             testDemo: '/api/tenants/test'
           },
@@ -163,6 +165,7 @@ class App {
 
     // Tenant-specific routes (protected)
     this.app.use('/api/tenants/documents', documentsRoutes);
+    this.app.use('/api/tenants/commesse', commesseRoutes);
     
     // 🧪 Test authentication routes (JWT ↔ DB testing)
     this.app.use('/api/test-auth', testAuthRoutes);

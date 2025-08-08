@@ -5,6 +5,16 @@ import UserManagementService from '../services/user-management.service';
 
 const router = Router();
 
+// Tipi locali per Request con db/tenant/user
+type TenantDb = {
+  companyId: string;
+  query: (text: string, params?: unknown[]) => Promise<{ rows: Array<Record<string, string>> }>;
+};
+type AuthedTenantRequest = Request & {
+  user?: { email?: string; role?: string; companyName?: string };
+  db?: TenantDb;
+};
+
 /**
  * 🗑️ GESTIONE ELIMINAZIONE UTENTI
  * API per eliminare utenti con sincronizzazione DB ↔ Cognito
@@ -208,7 +218,7 @@ router.get('/deletion-stats',
   authenticateToken,
   requireRole(['company_owner', 'admin']),
   tenantMiddleware,
-  async (req: Request, res: Response): Promise<void> => {
+  async (req: AuthedTenantRequest, res: Response): Promise<void> => {
     try {
       const db = req.db!;
       
@@ -229,7 +239,7 @@ router.get('/deletion-stats',
         stats: stats.rows[0]
       });
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Errore statistiche eliminazioni:', error);
       res.status(500).json({
         status: 'error',

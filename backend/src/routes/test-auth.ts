@@ -4,13 +4,35 @@ import { tenantMiddleware } from '../middleware/tenant';
 
 const router = Router();
 
+// Tipi locali per evitare errori sui campi estesi
+type TenantDb = {
+  companyId: string;
+  query: (text: string, params?: unknown[]) => Promise<{ rows: Array<Record<string, string>> }>;
+};
+type AuthedTenantRequest = Request & {
+  user?: {
+    sub?: string;
+    email?: string;
+    dbUserId?: string;
+    name?: string;
+    status?: string;
+    companyId?: string;
+    companyName?: string;
+    companySlug?: string;
+    role?: string;
+    tokenType?: 'access' | 'id';
+  };
+  tenant?: { companyId: string; isValidTenant: boolean };
+  db?: TenantDb;
+};
+
 /**
  * 🧪 ENDPOINT DI TEST per JWT ↔ DB Connection
  * - Verifica autenticazione JWT
  * - Mostra dati utente dal database  
  * - Testa tenant isolation
  */
-router.get('/me', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+router.get('/me', authenticateToken, async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     const user = req.user;
     
@@ -66,7 +88,7 @@ router.get('/me', authenticateToken, async (req: Request, res: Response): Promis
  * - Richiede autenticazione + tenant middleware
  * - Mostra dati company-specific
  */
-router.get('/tenant-info', authenticateToken, tenantMiddleware, async (req: Request, res: Response): Promise<void> => {
+router.get('/tenant-info', authenticateToken, tenantMiddleware, async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     const user = req.user;
     const tenant = req.tenant;
@@ -135,7 +157,7 @@ router.get('/tenant-info', authenticateToken, tenantMiddleware, async (req: Requ
  * 🧪 ENDPOINT DI TEST per Role-based Access
  * - Solo company_owner può accedere
  */
-router.get('/admin-only', authenticateToken, requireRole(['company_owner']), async (req: Request, res: Response): Promise<void> => {
+router.get('/admin-only', authenticateToken, requireRole(['company_owner']), async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     const user = req.user;
 
