@@ -1,25 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticateToken, optionalAuth, requireRole } from '../middleware/auth';
 
-// Estendere l'interfaccia Request per includere user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        sub: string;
-        email: string;
-        companyId?: string;
-        role?: string;
-        tokenType?: string;
-        name?: string;
-        emailVerified?: boolean;
-        username?: string;
-        scope?: string;
-        [key: string]: any;
-      };
-    }
-  }
-}
+// Interfaccia user ora definita in middleware/auth.ts
 
 const router = Router();
 

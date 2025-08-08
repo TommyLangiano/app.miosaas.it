@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 import { SnackbarProvider } from 'notistack';
 
 // project imports
-import { useSelector } from 'store';
+import { useSelector } from '../../store';
 
 // assets
 import { IconCircleCheck, IconSquareRoundedX, IconInfoCircle, IconAlertCircle } from '@tabler/icons-react';

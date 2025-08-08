@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
+import { GlobalUsersService } from '../services/global-database.service';
 
 // Estendere l'interfaccia Request per includere user
 declare global {
@@ -15,6 +16,11 @@ declare global {
         emailVerified?: boolean;
         username?: string;
         scope?: string;
+        // Campi aggiunti dal DB lookup
+        dbUserId?: string;
+        status?: string;
+        companyName?: string;
+        companySlug?: string;
         [key: string]: any;
       };
     }
@@ -125,18 +131,56 @@ export const authenticateToken = async (
     if (tokenType === 'id') {
       userInfo.email = payload.email;
       userInfo.emailVerified = payload.email_verified;
-      userInfo.name = payload.name;
+      userInfo.name = payload.given_name || payload.name;
+      userInfo.surname = payload.family_name;
       userInfo.preferredUsername = payload.preferred_username;
-      
-      // Attributi personalizzati (se presenti)
-      userInfo.companyId = payload['custom:company_id'];
-      userInfo.role = payload['custom:role'];
+      // Cognito username (immutabile) per operazioni Admin*
+      userInfo.cognitoUsername = payload['cognito:username'];
     }
 
     // Per access token, abbiamo informazioni di base
     if (tokenType === 'access') {
       userInfo.username = payload.username;
       userInfo.scope = payload.scope;
+    }
+
+    // 🔍 LOOKUP UTENTE REALE NEL DATABASE usando cognito_sub
+    try {
+      const dbUser = await GlobalUsersService.getByCognitoSub(payload.sub);
+      
+      if (!dbUser) {
+        console.warn(`🚨 User not found in DB for cognito_sub: ${payload.sub} – proceeding with token-only data`);
+        // Continua con i soli dati del token (profilo minimale)
+      } else {
+        // ✅ CARICA DATI REALI DAL DATABASE (non dal token!)
+        userInfo.dbUserId = dbUser.id;
+        userInfo.companyId = dbUser.company_id;  // 🔥 COMPANY_ID REALE DAL DB
+        userInfo.role = dbUser.role_name || 'user';  // Ruolo reale dal DB
+        userInfo.status = dbUser.status;
+        userInfo.email = dbUser.email; // Email verificata dal DB
+        userInfo.companyName = dbUser.company_name;
+        userInfo.companySlug = dbUser.company_slug;
+        
+        // Aggiorna last_login usando cognito_sub
+        await GlobalUsersService.updateLastLogin(payload.sub);
+        
+        console.log('✅ User authenticated from DB:', {
+          dbUserId: dbUser.id,
+          email: dbUser.email,
+          companyId: dbUser.company_id,
+          role: userInfo.role,
+          cognitoSub: payload.sub
+        });
+      }
+      
+    } catch (dbError) {
+      console.error('❌ Database lookup error:', dbError);
+      res.status(500).json({
+        status: 'error',
+        message: 'Errore durante la verifica utente nel database',
+        code: 'DB_LOOKUP_ERROR'
+      });
+      return;
     }
 
     // Aggiungi l'utente all'oggetto request

@@ -18,12 +18,12 @@ import Sidebar from './Sidebar';
 import HorizontalBar from './HorizontalBar';
 import MainContentStyled from './MainContentStyled';
 import Customization from '../Customization';
-import Loader from '../../../ui-component/Loader';
-import Breadcrumbs from '../../../ui-component/extended/Breadcrumbs';
+import Loader from '../../ui-component/Loader';
+import Breadcrumbs from '../../ui-component/extended/Breadcrumbs';
 
-import { MenuOrientation } from '../../../config';
-import useConfig from '../../../hooks/useConfig';
-import { handlerDrawerOpen, useGetMenuMaster } from '../../../api/menu';
+import { MenuOrientation } from '../../config';
+import useConfig from '../../hooks/useConfig';
+import { handlerDrawerOpen, useGetMenuMaster } from '../../api/menu';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
@@ -48,16 +48,17 @@ export default function MainLayout({ children }) {
   // horizontal menu-list bar : drawer
   const menu = useMemo(() => (isHorizontal ? <HorizontalBar /> : <Sidebar />), [isHorizontal]);
 
-  if (menuMasterLoading) return <Loader />;
+  if (menuMasterLoading) return null;
 
   return (
     <Box sx={{ display: 'flex' }}>
       {/* header */}
       <AppBar enableColorOnDark position="fixed" color="inherit" elevation={0} sx={{ bgcolor: 'background.default' }}>
-        <Toolbar sx={{ p: isHorizontal ? 1.25 : 2 }}>
+        <Toolbar sx={{ p: isHorizontal ? 1.25 : 2, minHeight: 88 }}>
           <Header />
         </Toolbar>
       </AppBar>
+      {/* nessuno spacer: offset gestito da MainContentStyled con paddingTop */}
 
       {/* menu / drawer */}
       {menu}

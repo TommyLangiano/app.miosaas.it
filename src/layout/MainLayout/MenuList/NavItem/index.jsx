@@ -19,9 +19,9 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 // project imports
-import { handlerActiveItem, handlerDrawerOpen, useGetMenuMaster } from '../../../api/menu';
-import { MenuOrientation, ThemeDirection, ThemeMode } from '../../../config';
-import useConfig from '../../../hooks/useConfig';
+import { handlerActiveItem, handlerDrawerOpen, useGetMenuMaster } from '../../../../api/menu';
+import { MenuOrientation, ThemeDirection, ThemeMode } from '../../../../config';
+import useConfig from '../../../../hooks/useConfig';
 
 // third party
 import { FormattedMessage } from 'react-intl';

@@ -19,7 +19,7 @@ import Box from '@mui/material/Box';
 import { linearProgressClasses } from '@mui/material/LinearProgress';
 
 // project imports
-import { ThemeMode } from '../../../config';
+import { ThemeMode } from '../../../../config';
 
 // assets
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';

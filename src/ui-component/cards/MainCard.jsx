@@ -9,8 +9,8 @@ import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
 // project imports
-import { ThemeMode } from '../../../config';
-import useConfig from '../../../hooks/useConfig';
+import { ThemeMode } from '../../config';
+import useConfig from '../../hooks/useConfig';
 
 // constant
 const headerStyle = {

@@ -6,15 +6,19 @@
 
 import axios from 'axios';
 
-const axiosServices = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3010/' });
+// Usa richieste relative per passare dal proxy di Next (rewrites) ed evitare CORS in dev
+const axiosServices = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL || '/' });
 
 // ==============================|| AXIOS - FOR MOCK SERVICES ||============================== //
 
 axiosServices.interceptors.request.use(
   async (config) => {
-    const accessToken = localStorage.getItem('serviceToken');
-    if (accessToken) {
-      config.headers['Authorization'] = `Bearer ${accessToken}`;
+    // Preferisci i token Cognito reali salvati da useAuthTokens
+    const idToken = localStorage.getItem('cognito_id_token');
+    const accessToken = localStorage.getItem('cognito_access_token');
+    const token = idToken || accessToken || localStorage.getItem('serviceToken');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
@@ -26,10 +30,11 @@ axiosServices.interceptors.request.use(
 axiosServices.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response.status === 401 && !window.location.href.includes('/login')) {
+    const status = error?.response?.status;
+    if (status === 401 && !window.location.href.includes('/login')) {
       window.location.pathname = '/login';
     }
-    return Promise.reject((error.response && error.response.data) || 'Wrong Services');
+    return Promise.reject((error?.response && error.response.data) || error?.message || 'Wrong Services');
   }
 );
 

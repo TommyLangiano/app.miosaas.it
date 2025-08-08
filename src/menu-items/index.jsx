@@ -1,18 +1,12 @@
 // menu import
 import dashboard from './dashboard';
-import application from './application';
-import forms from './forms';
-import elements from './elements';
-import samplePage from './sample-page';
-import pages from './pages';
-import utilities from './utilities';
-import support from './support';
-import other from './other';
+import gestioneOperativa from './gestione-operativa';
+import amministrazione from './gestione-utenti';
 
 // ==============================|| MENU ITEMS ||============================== //
 
 const menuItems = {
-  items: [dashboard, application, forms, elements, samplePage, pages, utilities, support, other]
+  items: [dashboard, gestioneOperativa, amministrazione]
 };
 
 export default menuItems;

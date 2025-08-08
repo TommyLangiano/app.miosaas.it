@@ -25,10 +25,10 @@ import { FormattedMessage } from 'react-intl';
 import NavCollapse from '../NavCollapse';
 import NavItem from '../NavItem';
 
-import { MenuOrientation } from '../../../config';
-import useConfig from '../../../hooks/useConfig';
-import Transitions from '../../../ui-component/extended/Transitions';
-import { useGetMenuMaster } from '../../../api/menu';
+import { MenuOrientation } from '../../../../config';
+import useConfig from '../../../../hooks/useConfig';
+import Transitions from '../../../../ui-component/extended/Transitions';
+import { useGetMenuMaster } from '../../../../api/menu';
 
 // assets
 import { IconChevronDown, IconChevronRight, IconMinusVertical } from '@tabler/icons-react';

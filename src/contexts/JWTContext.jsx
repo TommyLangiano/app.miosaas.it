@@ -6,12 +6,12 @@ import { Chance } from 'chance';
 import { jwtDecode } from 'jwt-decode';
 
 // reducer - state management
-import { LOGIN, LOGOUT } from '../../store/actions';
-import accountReducer from '../../store/accountReducer';
+import { LOGIN, LOGOUT } from '../store/actions';
+import accountReducer from '../store/accountReducer';
 
 // project imports
-import Loader from '../../ui-component/Loader';
-import axios from 'utils/axios';
+import Loader from '../ui-component/Loader';
+import axios from '../utils/axios';
 
 const chance = new Chance();
 

@@ -16,16 +16,17 @@ import Loader from '../../ui-component/Loader';
  * @param {PropTypes.node} children children element/node
  */
 export default function AuthGuard({ children }) {
-  const { isLoggedIn } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      router.replace('/login');
+    if (!loading && !isAuthenticated) {
+      router.replace('/');
     }
-  }, [isLoggedIn, router]);
+  }, [loading, isAuthenticated, router]);
 
-  if (!isLoggedIn) return <Loader />;
+  if (loading) return <Loader />;
+  if (!isAuthenticated) return null;
 
   return children;
 }

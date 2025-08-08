@@ -36,6 +36,10 @@ const startServer = async () => {
     console.log('🔄 Starting MioSaaS Backend Server...');
     
     const app = new App();
+    // Forza porta da ENV se impostata
+    if (process.env.PORT) {
+      (app as any).port = process.env.PORT;
+    }
     app.listen();
     
   } catch (error) {

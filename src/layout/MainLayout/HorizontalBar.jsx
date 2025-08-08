@@ -12,8 +12,8 @@ import Box from '@mui/material/Box';
 
 // project imports
 import MenuList from './MenuList';
-import { ThemeMode } from '../../../config';
-import useConfig from '../../../hooks/useConfig';
+import { ThemeMode } from '../../config';
+import useConfig from '../../hooks/useConfig';
 
 function ElevationScroll({ children, window }) {
   const theme = useTheme();

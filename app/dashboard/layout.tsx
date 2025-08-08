@@ -1,6 +1,7 @@
 'use client';
 
-import { Box } from '@mui/material';
+import MainLayout from '../../src/layout/MainLayout';
+import AuthGuard from '../../src/utils/route-guard/AuthGuard';
 
 // ==============================|| DASHBOARD LAYOUT SEMPLIFICATO ||============================== //
 
@@ -10,8 +11,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'grey.100', p: 3 }}>
-      {children}
-    </Box>
+    <AuthGuard>
+      <MainLayout>{children}</MainLayout>
+    </AuthGuard>
   );
 }

@@ -5,19 +5,19 @@ import { useState, useEffect } from 'react';
 
 // third party
 import { IntlProvider } from 'react-intl';
-import useConfig from '../../../hooks/useConfig';
+import useConfig from '../hooks/useConfig';
 
 // load locales files
 function loadLocaleData(i18n) {
   switch (i18n) {
     case 'fr':
-      return import('utils/locales/fr.json');
+      return import('../utils/locales/fr.json');
     case 'ro':
-      return import('utils/locales/ro.json');
+      return import('../utils/locales/ro.json');
     case 'zh':
-      return import('utils/locales/zh.json');
+      return import('../utils/locales/zh.json');
     default:
-      return import('utils/locales/en.json');
+      return import('../utils/locales/en.json');
   }
 }
 

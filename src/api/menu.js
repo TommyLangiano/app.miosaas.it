@@ -6,7 +6,8 @@ import { create } from 'zustand';
 
 const useMenuStore = create((set, get) => ({
   menuMaster: {
-    isDashboardDrawerOpened: true
+    isDashboardDrawerOpened: true,
+    openedItem: ''
   },
   menuMasterLoading: false,
   
@@ -15,6 +16,12 @@ const useMenuStore = create((set, get) => ({
     menuMaster: {
       ...state.menuMaster,
       isDashboardDrawerOpened: isOpen
+    }
+  })),
+  setActiveItem: (itemId) => set((state) => ({
+    menuMaster: {
+      ...state.menuMaster,
+      openedItem: itemId
     }
   })),
   
@@ -41,7 +48,7 @@ export const handlerDrawerOpen = (isOpen) => {
 
 // Handler per item attivo (placeholder per ora)
 export const handlerActiveItem = (openItem) => {
-  console.log('Active item:', openItem);
+  useMenuStore.getState().setActiveItem(openItem);
 };
 
 export default useMenuStore;

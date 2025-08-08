@@ -9,10 +9,10 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import registerRoutes from './routes/register';
 import documentsRoutes from './routes/tenants/documents';
-import demoRegisterRoutes from './routes/demoRegister';
-import companyRegistrationRoutes from './routes/companyRegistration';
-import exampleTenantRoutes from './routes/tenants/example';
-import testDemoRoutes from './routes/tenants/testDemo';
+import testAuthRoutes from './routes/test-auth';
+import userManagementRoutes from './routes/user-management';
+import syncCognitoRoutes from './routes/sync-cognito';
+import profileRoutes from './routes/profile';
 
 // Import database
 import { db } from './config/db';
@@ -47,13 +47,33 @@ class App {
       this.app.use(morgan('combined'));
     }
 
-    // CORS
-    this.app.use(cors({
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    // CORS (STRICT): solo origini esplicite
+    const isDev = (process.env.NODE_ENV !== 'production');
+    const allowedOriginsEnv = (process.env.CORS_ORIGIN || '')
+      .split(',')
+      .map(o => o.trim())
+      .filter(Boolean);
+    const devOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    const allowedOrigins = Array.from(new Set([
+      ...allowedOriginsEnv,
+      ...(isDev ? devOrigins : [])
+    ]));
+
+    const corsOptions: cors.CorsOptions = {
+      origin: (origin, callback) => {
+        // Consenti richieste server-to-server (senza origin)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error('Not allowed by CORS'));
+      },
       credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-    }));
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+    };
+
+    this.app.use(cors(corsOptions));
+    // Preflight limitato alle API (no wildcard globale)
+    this.app.options('/api/*', cors(corsOptions));
 
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
@@ -132,18 +152,20 @@ class App {
     // User registration route (public - no auth required)
     this.app.use('/api', registerRoutes);
 
-    // Demo registration route
-    this.app.use('/api/demo', demoRegisterRoutes);
+    // 🗑️ User management routes (protected)
+    this.app.use('/api/users', userManagementRoutes);
 
-    // Company registration route (protected)
-    this.app.use('/api', companyRegistrationRoutes);
+    // 🔄 Sync Cognito routes (protected)
+    this.app.use('/api/sync-cognito', syncCognitoRoutes);
+
+    // 👤 User profile routes (protected)
+    this.app.use('/api/profile', profileRoutes);
 
     // Tenant-specific routes (protected)
     this.app.use('/api/tenants/documents', documentsRoutes);
-    this.app.use('/api/tenants/example', exampleTenantRoutes);
     
-    // Test demo routes (NO AUTH - solo per testing!)
-    this.app.use('/api/tenants/test', testDemoRoutes);
+    // 🧪 Test authentication routes (JWT ↔ DB testing)
+    this.app.use('/api/test-auth', testAuthRoutes);
 
     // 404 handler
     this.app.use('*', (req: Request, res: Response) => {

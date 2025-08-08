@@ -9,10 +9,10 @@ import createCache from '@emotion/cache';
 
 // third party
 import rtlPlugin from 'stylis-plugin-rtl';
-import useConfig from '../../../hooks/useConfig';
+import useConfig from '../hooks/useConfig';
 
 // project imports
-import { ThemeDirection } from '../../../config';
+import { ThemeDirection } from '../config';
 
 export default function RTLLayout({ children }) {
   const { themeDirection } = useConfig();

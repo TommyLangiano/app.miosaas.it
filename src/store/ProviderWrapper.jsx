@@ -2,10 +2,10 @@
 import PropTypes from 'prop-types';
 
 // yet-another-react-lightbox
-import 'yet-another-react-lightbox/styles.css';
+// import 'yet-another-react-lightbox/styles.css';
 
 // map styles
-import 'mapbox-gl/dist/mapbox-gl.css';
+// import 'mapbox-gl/dist/mapbox-gl.css';
 
 // third party
 import { Provider } from 'react-redux';
@@ -13,14 +13,14 @@ import { PersistGate } from 'redux-persist/integration/react';
 
 // project imports
 import Locales from '../ui-component/Locales';
-import NavigationScroll from 'layout/NavigationScroll';
+import NavigationScroll from '../layout/NavigationScroll';
 import RTLLayout from '../ui-component/RTLLayout';
 import Snackbar from '../ui-component/extended/Snackbar';
 import Notistack from '../ui-component/third-party/Notistack';
 
-import ThemeCustomization from 'themes';
+import ThemeCustomization from '../themes';
 
-import { persister, store } from 'store';
+import { persister, store } from './index';
 import { ConfigProvider } from '../contexts/ConfigContext';
 
 import { JWTProvider as AuthProvider } from '../contexts/JWTContext';

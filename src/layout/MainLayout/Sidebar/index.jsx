@@ -6,12 +6,12 @@ import Chip from '@mui/material/Chip';
 import Drawer from '@mui/material/Drawer';
 import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
 
 // third party
 import PerfectScrollbar from 'react-perfect-scrollbar';
 
 // project imports
-import MenuCard from './MenuCard';
 import MenuList from '../MenuList';
 import LogoSection from '../LogoSection';
 import MiniDrawerStyled from './MiniDrawerStyled';
@@ -21,6 +21,7 @@ import useConfig from '../../../hooks/useConfig';
 import { drawerWidth } from '../../../store/constant';
 
 import { handlerDrawerOpen, useGetMenuMaster } from '../../../api/menu';
+import { IconPin } from '@tabler/icons-react';
 
 // ==============================|| SIDEBAR DRAWER ||============================== //
 
@@ -30,25 +31,30 @@ function Sidebar() {
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened || false;
 
-  const { menuOrientation, miniDrawer, mode } = useConfig();
+  const { menuOrientation, miniDrawer, mode, onChangeMiniDrawer } = useConfig();
 
   const logo = useMemo(
     () => (
-      <Box sx={{ display: 'flex', p: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2 }}>
         <LogoSection />
+        <IconButton size="small" aria-label="toggle-mini-drawer" onClick={() => onChangeMiniDrawer(!miniDrawer)}>
+          <IconPin size={18} />
+        </IconButton>
       </Box>
     ),
-    []
+    [miniDrawer, onChangeMiniDrawer]
   );
 
   const drawer = useMemo(() => {
     const isVerticalOpen = menuOrientation === MenuOrientation.VERTICAL && drawerOpen;
-    const drawerContent = (
+        const appVersion = process.env.NEXT_PUBLIC_VERSION;
+        const drawerContent = (
       <>
-        <MenuCard />
-        <Stack direction="row" sx={{ justifyContent: 'center', mb: 2 }}>
-          <Chip label={process.env.NEXT_PUBLIC_VERSION} size="small" color="default" />
-        </Stack>
+            {appVersion && (
+              <Stack direction="row" sx={{ justifyContent: 'center', mb: 2 }}>
+                <Chip label={appVersion} size="small" color="default" />
+              </Stack>
+            )}
       </>
     );
 

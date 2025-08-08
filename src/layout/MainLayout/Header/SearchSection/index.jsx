@@ -17,8 +17,8 @@ import Box from '@mui/material/Box';
 import PopupState, { bindPopper, bindToggle } from 'material-ui-popup-state';
 
 // project imports
-import { ThemeMode } from '../../../config';
-import Transitions from '../../../ui-component/extended/Transitions';
+import { ThemeMode } from '../../../../config';
+import Transitions from '../../../../ui-component/extended/Transitions';
 
 // assets
 import { IconAdjustmentsHorizontal, IconSearch, IconX } from '@tabler/icons-react';

@@ -212,6 +212,32 @@ export class GlobalUsersService {
     return result.rows[0] || null;
   }
 
+  static async getByEmail(email: string): Promise<any | null> {
+    const result = await db.query(`
+      SELECT u.*, c.name as company_name, c.slug as company_slug, 
+             r.name as role_name, r.permissions
+      FROM users u
+      LEFT JOIN companies c ON u.company_id = c.id
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.email = $1
+    `, [email]);
+    
+    return result.rows[0] || null;
+  }
+
+  static async getById(userId: string): Promise<any | null> {
+    const result = await db.query(`
+      SELECT u.*, c.name as company_name, c.slug as company_slug, 
+             r.name as role_name, r.permissions
+      FROM users u
+      LEFT JOIN companies c ON u.company_id = c.id
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.id = $1
+    `, [userId]);
+    
+    return result.rows[0] || null;
+  }
+
   static async create(userData: {
     email: string;
     name?: string;
@@ -261,6 +287,7 @@ export class GlobalUsersService {
   static async updateProfile(userId: string, profileData: {
     name?: string;
     surname?: string;
+    email?: string;
     phone?: string;
     avatar_url?: string;
     locale?: string;

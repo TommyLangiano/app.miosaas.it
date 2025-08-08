@@ -2,7 +2,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Box, 
@@ -31,7 +31,10 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 
 // AWS Amplify
-import { signIn, confirmSignIn } from 'aws-amplify/auth';
+import { signIn, confirmSignIn, signOut } from 'aws-amplify/auth';
+
+// Custom hook for token management
+import { useAuthTokens } from '../../src/hooks/useAuthTokens';
 
 // Project imports (usando componenti Berry) - temporaneamente disabilitati
 // import MainCard from '../../src/ui-component/cards/MainCard';
@@ -43,6 +46,15 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [signInSession, setSignInSession] = useState<any>(null);
+  const [isClient, setIsClient] = useState(false);
+  
+  // 🔐 Hook per gestione token Cognito
+  const { checkAuthState, getAuthHeaders, isAuthenticated } = useAuthTokens();
+
+  // 🔧 Fix hydration mismatch
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);
@@ -70,6 +82,8 @@ export default function LoginPage() {
         
         if (isSignedIn) {
           console.log('✅ Password changed successfully');
+          // 🔑 Aggiorna token dopo cambio password
+          await checkAuthState();
           router.push('/dashboard');
         } else {
           setFieldError('submit', 'Errore nel cambio password. Riprova.');
@@ -78,15 +92,44 @@ export default function LoginPage() {
       }
       
       // Login con AWS Cognito
-      const { isSignedIn, nextStep } = await signIn({
-        username: values.email,
-        password: values.password,
-      });
+      let loginResult;
+      try {
+        loginResult = await signIn({
+          username: values.email,
+          password: values.password,
+        });
+      } catch (signInError: any) {
+        if (signInError.name === 'UserAlreadyAuthenticatedException') {
+          console.log('🔄 User already authenticated, signing out first...');
+          try {
+            await signOut();
+            // Pulisci anche i token locali
+            localStorage.clear();
+            console.log('✅ Logout completed, retrying login...');
+            
+            // Retry login after logout
+            loginResult = await signIn({
+              username: values.email,
+              password: values.password,
+            });
+          } catch (logoutError) {
+            console.error('❌ Logout failed:', logoutError);
+            setFieldError('submit', 'Errore durante il logout. Ricarica la pagina e riprova.');
+            return;
+          }
+        } else {
+          throw signInError; // Re-throw other errors
+        }
+      }
+      
+      const { isSignedIn, nextStep } = loginResult;
 
       console.log('🔐 Login response:', { isSignedIn, nextStep });
 
       if (isSignedIn) {
         console.log('✅ Login successful');
+        // 🔑 Ottieni e salva token Cognito
+        await checkAuthState();
         router.push('/dashboard');
       } else if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
         console.log('🔄 Password change required');
@@ -118,6 +161,33 @@ export default function LoginPage() {
       setSubmitting(false);
     }
   };
+
+  // 🔧 Evita rendering durante SSR per evitare hydration mismatch
+  if (!isClient) {
+    return (
+      <Box sx={{ 
+        minHeight: '100vh',
+        bgcolor: 'grey.50',
+        display: 'flex',
+        alignItems: 'center',
+        py: 4
+      }}>
+        <Container maxWidth="xl">
+          <Grid container justifyContent="center">
+            <Grid item xs={12} sm={11} md={10} lg={8}>
+              <Card elevation={8} sx={{ borderRadius: 3, overflow: 'hidden' }}>
+                <Box sx={{ p: { xs: 2, md: 4 } }}>
+                  <Typography variant="h4" sx={{ textAlign: 'center', mb: 4 }}>
+                    Caricamento...
+                  </Typography>
+                </Box>
+              </Card>
+            </Grid>
+          </Grid>
+        </Container>
+      </Box>
+    );
+  }
 
   return (
       <Box sx={{ 
@@ -358,8 +428,40 @@ export default function LoginPage() {
               </Box>
             </Card>
 
+            {/* 🚨 Emergency Logout Button */}
+            <Box sx={{ textAlign: 'center', mt: 2, mb: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                color="warning"
+                onClick={async () => {
+                  try {
+                    console.log('🔄 Force logout...');
+                    await signOut();
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    console.log('✅ Force logout completed');
+                    window.location.reload();
+                  } catch (error) {
+                    console.error('❌ Force logout error:', error);
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.reload();
+                  }
+                }}
+                sx={{ 
+                  textTransform: 'none',
+                  fontSize: '0.8rem',
+                  px: 2,
+                  py: 0.5
+                }}
+              >
+                🚨 Forza Logout (Se problemi di login)
+              </Button>
+            </Box>
+
             {/* Footer */}
-            <Box sx={{ textAlign: 'center', mt: 4 }}>
+            <Box sx={{ textAlign: 'center', mt: 2 }}>
               <Typography variant="body2" color="text.secondary">
                 © 2024 MioSaaS - Piattaforma SaaS professionale
                 </Typography>

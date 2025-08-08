@@ -1,5 +1,11 @@
 {
   "dashboard": "Dashboard",
+  "Dashboard": "Dashboard",
+  "Commesse": "Commesse",
+  "Rapportini": "Rapportini",
+  "Gestione Operativa": "Gestione Operativa",
+  "Amministrazione": "Amministrazione",
+  "Gestione Utenti": "Gestione Utenti",
   "default": "Default",
   "analytics": "Analytics",
   "widget": "Widget",

@@ -18,9 +18,9 @@ import MuiBreadcrumbs from '@mui/material/Breadcrumbs';
 import Box from '@mui/material/Box';
 
 // project imports
-import { ThemeMode, ThemeDirection } from '../../../config';
-import navigation from 'menu-items';
-import useConfig from '../../../hooks/useConfig';
+import { ThemeMode, ThemeDirection } from '../../config';
+import navigation from '../../menu-items';
+import useConfig from '../../hooks/useConfig';
 
 // assets
 import { IconChevronRight, IconTallymark1 } from '@tabler/icons-react';
@@ -271,19 +271,18 @@ export default function Breadcrumbs({
           }
           {...others}
         >
-          <Box sx={{ p: 1.25, px: card === false ? 0 : 2 }}>
-            <Grid
-              container
-              direction={rightAlign ? 'row' : 'column'}
-              justifyContent={rightAlign ? 'space-between' : 'flex-start'}
-              alignItems={rightAlign ? 'center' : 'flex-start'}
-              spacing={1}
-            >
-              {title && !titleBottom && <BTitle title={custom ? heading : item?.title} />}
-              <Grid>{tempContent}</Grid>
-              {title && titleBottom && <BTitle title={custom ? heading : item?.title} />}
-            </Grid>
-          </Box>
+          <Grid
+            container
+            direction={rightAlign ? 'row' : 'column'}
+            justifyContent={rightAlign ? 'space-between' : 'flex-start'}
+            alignItems={rightAlign ? 'center' : 'flex-start'}
+            spacing={1}
+            sx={{ p: 1.25, px: card === false ? 0 : 2 }}
+          >
+            {title && !titleBottom && <BTitle title={custom ? heading : item?.title} />}
+            <Grid>{tempContent}</Grid>
+            {title && titleBottom && <BTitle title={custom ? heading : item?.title} />}
+          </Grid>
           {card === false && divider !== false && <Divider sx={{ mt: 2 }} />}
         </Card>
       );

@@ -12,9 +12,9 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 
 // project imports
-import { ThemeMode } from '../../../config';
-import MainCard from '../ui-component/cards/MainCard';
-import TotalIncomeCard from '../ui-component/cards/Skeleton/TotalIncomeCard';
+import { ThemeMode } from '../../config';
+import MainCard from './MainCard';
+import TotalIncomeCard from './Skeleton/TotalIncomeCard';
 
 // styles
 const CardWrapper = styled(MainCard)(({ theme }) => ({

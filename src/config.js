@@ -50,10 +50,10 @@ const config = {
   menuOrientation: MenuOrientation.VERTICAL,
   miniDrawer: false,
   fontFamily: roboto.style.fontFamily,
-  borderRadius: 8,
+  borderRadius: 14,
   outlinedFilled: true,
   mode: ThemeMode.LIGHT,
-  presetColor: 'default',
+  presetColor: 'theme4',
   i18n: 'en',
   themeDirection: ThemeDirection.LTR,
   container: true
