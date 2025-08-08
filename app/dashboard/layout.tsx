@@ -2,6 +2,7 @@
 
 import MainLayout from '../../src/layout/MainLayout';
 import AuthGuard from '../../src/utils/route-guard/AuthGuard';
+import type { FC, ReactNode } from 'react';
 
 // ==============================|| DASHBOARD LAYOUT SEMPLIFICATO ||============================== //
 
@@ -10,9 +11,10 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const Guard = AuthGuard as unknown as FC<{ children: ReactNode }>;
   return (
-    <AuthGuard>
+    <Guard>
       <MainLayout>{children}</MainLayout>
-    </AuthGuard>
+    </Guard>
   );
 }

@@ -2,12 +2,14 @@
 
 import MainLayout from '../../src/layout/MainLayout';
 import AuthGuard from '../../src/utils/route-guard/AuthGuard';
+import type { FC, ReactNode } from 'react';
 
 export default function ImpostazioniAccountLayout({ children }: { children: React.ReactNode }) {
+  const Guard = AuthGuard as unknown as FC<{ children: ReactNode }>;
   return (
-    <AuthGuard>
+    <Guard>
       <MainLayout>{children}</MainLayout>
-    </AuthGuard>
+    </Guard>
   );
 }
 
