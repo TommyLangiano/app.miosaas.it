@@ -22,6 +22,7 @@
     "@tabler/icons-react": "^3.34.1",
     "apexcharts": "^5.3.2",
     "aws-amplify": "^6.15.4",
+    "axios": "^1.11.0",
     "chance": "^1.1.13",
     "formik": "^2.4.6",
     "framer-motion": "^12.23.12",
