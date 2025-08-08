@@ -73,8 +73,8 @@ class App {
     };
 
     this.app.use(cors(corsOptions));
-    // Preflight limitato alle API (no wildcard globale)
-    this.app.options('/api/*', cors(corsOptions));
+    // Preflight globale per tutte le route (risponde alle OPTIONS)
+    this.app.options('*', cors(corsOptions));
 
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
