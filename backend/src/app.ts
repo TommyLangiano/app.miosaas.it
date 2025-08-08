@@ -65,11 +65,13 @@ class App {
         // Consenti richieste server-to-server (senza origin)
         if (!origin) return callback(null, true);
         if (allowedOrigins.includes(origin)) return callback(null, true);
-        return callback(new Error('Not allowed by CORS'));
+        // Non lanciare errori per non generare 500 sulla preflight
+        return callback(null, false);
       },
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      optionsSuccessStatus: 204
     };
 
     this.app.use(cors(corsOptions));
