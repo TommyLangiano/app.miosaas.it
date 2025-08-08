@@ -25,21 +25,18 @@ import {
   Grid,
   Divider
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material/Select';
 
 import {
   IconCheck,
-  IconCrown,
   IconUsers,
   IconBuilding,
   IconMail,
-  IconLock,
   IconArrowRight,
   IconArrowLeft,
   IconRocket,
-  IconDevices,
   IconChartBar,
-  IconShield,
-  IconHeadphones
+  IconShield
 } from '@tabler/icons-react';
 
 interface FormData {
@@ -158,14 +155,14 @@ const SignupPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
-    
+
     if (name === 'company_name') {
       const generatedSlug = value
         .toLowerCase()
@@ -173,6 +170,16 @@ const SignupPage = () => {
         .replace(/\s+/g, '_')
         .substring(0, 20);
       setSlugPreview(generatedSlug);
+    }
+  };
+
+  const handleSelectChange = (e: SelectChangeEvent<string>) => {
+    const { name, value } = e.target;
+    if (!name) return;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
 
@@ -440,7 +447,7 @@ const SignupPage = () => {
                       label="Nome *"
                       name="name"
                       value={formData.name}
-                      onChange={handleChange}
+                      onChange={handleInputChange}
                       error={!!errors.name}
                       helperText={errors.name}
                       variant="outlined"
@@ -453,7 +460,7 @@ const SignupPage = () => {
                       label="Cognome *"
                       name="surname"
                       value={formData.surname}
-                      onChange={handleChange}
+                      onChange={handleInputChange}
                       error={!!errors.surname}
                       helperText={errors.surname}
                       variant="outlined"
@@ -467,7 +474,7 @@ const SignupPage = () => {
                       name="email"
                       type="email"
                       value={formData.email}
-                      onChange={handleChange}
+                      onChange={handleInputChange}
                       error={!!errors.email}
                       helperText={errors.email}
                       variant="outlined"
@@ -482,7 +489,7 @@ const SignupPage = () => {
                       name="password"
                       type="password"
                       value={formData.password}
-                      onChange={handleChange}
+                      onChange={handleInputChange}
                       error={!!errors.password}
                       helperText={errors.password}
                       variant="outlined"
@@ -497,7 +504,7 @@ const SignupPage = () => {
                       name="confirm_password"
                       type="password"
                       value={formData.confirm_password}
-                      onChange={handleChange}
+                      onChange={handleInputChange}
                       error={!!errors.confirm_password}
                       helperText={errors.confirm_password}
                       variant="outlined"
@@ -527,12 +534,12 @@ const SignupPage = () => {
                 
                 <Grid container spacing={3}>
                   <Grid size={{ xs: 12 }}>
-                    <TextField
+                      <TextField
                       fullWidth
                       label="Nome Azienda *"
                       name="company_name"
                       value={formData.company_name}
-                      onChange={handleChange}
+                       onChange={handleInputChange}
                       error={!!errors.company_name}
                       helperText={errors.company_name}
                       variant="outlined"
@@ -558,7 +565,7 @@ const SignupPage = () => {
                         name="company_size"
                         value={formData.company_size}
                         label="Dimensione Azienda"
-                        onChange={handleChange}
+                       onChange={handleSelectChange}
                       >
                         <MenuItem value="small">Piccola (1-10 dipendenti)</MenuItem>
                         <MenuItem value="medium">Media (11-50 dipendenti)</MenuItem>
@@ -574,7 +581,7 @@ const SignupPage = () => {
                         name="country"
                         value={formData.country}
                         label="Paese"
-                        onChange={handleChange}
+                        onChange={handleSelectChange}
                       >
                         <MenuItem value="IT">Italia</MenuItem>
                         <MenuItem value="DE">Germania</MenuItem>
