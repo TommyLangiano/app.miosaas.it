@@ -173,8 +173,8 @@ export default function LoginPage() {
         py: 4
       }}>
         <Container maxWidth="xl">
-          <Grid container justifyContent="center">
-            <Grid item xs={12} sm={11} md={10} lg={8}>
+        <Grid container justifyContent="center">
+        <Grid component="div" item xs={12} sm={11} md={10} lg={8}>
               <Card elevation={8} sx={{ borderRadius: 3, overflow: 'hidden' }}>
                 <Box sx={{ p: { xs: 2, md: 4 } }}>
                   <Typography variant="h4" sx={{ textAlign: 'center', mb: 4 }}>
