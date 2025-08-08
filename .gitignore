@@ -7,6 +7,11 @@ yarn-error.log*
 # Build output
 dist/
 build/
+.next/
+out/
+backend/dist/
+backend/node_modules/
+.next/cache/
 
 # Environment variables
 .env
