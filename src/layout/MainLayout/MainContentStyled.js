@@ -12,7 +12,7 @@ import { drawerWidth } from '../../store/constant';
 const MainContentStyled = styled('main', {
   shouldForwardProp: (prop) => prop !== 'open' && prop !== 'menuOrientation' && prop !== 'borderRadius'
 })(({ theme, open, menuOrientation, borderRadius }) => ({
-  backgroundColor: theme.palette.background.default,
+  backgroundColor: theme.palette.mode === ThemeMode.DARK ? theme.palette.background.default : theme.palette.grey[50],
   minWidth: '1%',
   width: '100%',
   minHeight: 'calc(100vh - 88px)',

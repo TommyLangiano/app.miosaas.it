@@ -70,7 +70,7 @@ export default function MainLayout({ children }) {
           sx={{ ...(!container && { px: { xs: 0 } }), minHeight: 'calc(100vh - 128px)', display: 'flex', flexDirection: 'column' }}
         >
           {/* breadcrumb */}
-          <Breadcrumbs />
+          <Breadcrumbs sx={{ mt: 2.5 }} />
           {children}
           <Footer />
         </Container>
