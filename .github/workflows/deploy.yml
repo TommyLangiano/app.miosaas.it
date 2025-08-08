@@ -1,0 +1,29 @@
+name: 🚀 Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: 🔁 Deploy Backend to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🛡️ Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: 🔁 Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ec2-user@api.thechessionsleague.it '
+            cd ~/app.miosaas.it/backend &&
+            git reset --hard &&
+            git pull origin main &&
+            ./deploy.sh
+          '
