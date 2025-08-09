@@ -96,6 +96,25 @@ export class Migration003ForceRebuildCommesse {
         }
       }
 
+      // Crea tabella file delle commesse se non esiste
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS commessa_files (
+          file_id UUID NOT NULL,
+          commessa_id INTEGER NOT NULL,
+          company_id UUID NOT NULL,
+          filename_original VARCHAR(512) NOT NULL,
+          s3_key VARCHAR(1024) NOT NULL,
+          content_type VARCHAR(255),
+          size_bytes BIGINT,
+          checksum_sha256 VARCHAR(64),
+          uploaded_by UUID,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (company_id, commessa_id, file_id),
+          FOREIGN KEY (commessa_id) REFERENCES commesse(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_commessa_files_commessa ON commessa_files(company_id, commessa_id, created_at DESC);
+      `);
+
       await this.recordMigration();
       await db.query('COMMIT');
       console.log('✅ Migrazione 003 completata con successo');

@@ -10,6 +10,7 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import MenuItem from '@mui/material/MenuItem';
 import Alert from '@mui/material/Alert';
+import Typography from '@mui/material/Typography';
 
 export default function NuovaCommessaPage() {
   const [form, setForm] = useState({
@@ -26,6 +27,17 @@ export default function NuovaCommessaPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [createdCommessaId, setCreatedCommessaId] = useState<number | null>(null);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [filesList, setFilesList] = useState<Array<{
+    file_id: string;
+    filename_original: string;
+    s3_key: string;
+    content_type?: string | null;
+    size_bytes?: number | null;
+    checksum_sha256?: string | null;
+    created_at?: string;
+  }>>([]);
 
   const breadcrumbLinks = useMemo(
     () => [
@@ -57,11 +69,9 @@ export default function NuovaCommessaPage() {
         importo_commessa: form.importo_commessa ? Number(form.importo_commessa) : null
       };
       const res = await axios.post('/api/tenants/commesse', body, { headers });
-      setSuccess('Commessa creata con successo');
-      setForm({
-        cliente: '', luogo: '', data_inizio: '', data_fine: '', descrizione: '',
-        imponibile_commessa: '', iva_commessa: '', importo_commessa: '', stato: 'da_avviare'
-      });
+      const newId = res?.data?.data?.id;
+      setCreatedCommessaId(newId ?? null);
+      setSuccess('Commessa creata con successo. Ora puoi caricare i file.');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Errore nella creazione';
       setError(message);
@@ -121,6 +131,111 @@ export default function NuovaCommessaPage() {
           </MC>
         );
       })()}
+
+      {createdCommessaId && (
+        (() => {
+          const MC = MainCard as unknown as ComponentType<Record<string, unknown>>;
+          return (
+            <MC title={`Upload file per commessa #${createdCommessaId}`}>
+              <Stack spacing={2}>
+                <input
+                  type="file"
+                  multiple
+                  onChange={async (ev) => {
+                    const input = ev.currentTarget;
+                    if (!input.files || input.files.length === 0) return;
+                    const files = Array.from(input.files);
+                    setUploading(true);
+                    setError(null);
+                    try {
+                      const companyId = localStorage.getItem('company_id');
+                      const headers: Record<string, string> = {};
+                      if (companyId) headers['X-Company-ID'] = companyId;
+
+                      const computeSha256 = async (file: File): Promise<string> => {
+                        const buf = await file.arrayBuffer();
+                        const digest = await crypto.subtle.digest('SHA-256', buf);
+                        const bytes = new Uint8Array(digest);
+                        return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+                      };
+
+                      for (const f of files) {
+                        // 1) presign
+                        const presignRes = await axios.post(
+                          `/api/tenants/commesse/${createdCommessaId}/files/presign`,
+                          { filename: f.name, content_type: f.type || 'application/octet-stream' },
+                          { headers }
+                        );
+                        const { presignedUrl, file_id, s3_key } = presignRes.data?.data || {};
+
+                        // 2) PUT su S3
+                        await fetch(presignedUrl, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': f.type || 'application/octet-stream' },
+                          body: f
+                        });
+
+                        // 3) checksum + salva metadati
+                        const checksum = await computeSha256(f).catch(() => undefined);
+                        await axios.post(
+                          `/api/tenants/commesse/${createdCommessaId}/files`,
+                          {
+                            file_id,
+                            filename_original: f.name,
+                            s3_key,
+                            content_type: f.type || null,
+                            size_bytes: f.size,
+                            checksum_sha256: checksum || null
+                          },
+                          { headers }
+                        );
+
+                        setFilesList((prev) => [
+                          {
+                            file_id,
+                            filename_original: f.name,
+                            s3_key,
+                            content_type: f.type || null,
+                            size_bytes: f.size,
+                            checksum_sha256: checksum || null
+                          },
+                          ...prev
+                        ]);
+                      }
+                    } catch (err: unknown) {
+                      const message = err instanceof Error ? err.message : 'Errore durante upload';
+                      setError(message);
+                    } finally {
+                      setUploading(false);
+                      // reset input per poter ri-caricare gli stessi file
+                      ev.currentTarget.value = '';
+                    }
+                  }}
+                />
+
+                {uploading && <Alert severity="info">Caricamento in corso...</Alert>}
+                {error && <Alert severity="error">{error}</Alert>}
+
+                <Box>
+                  <Typography variant="h6" sx={{ mb: 1 }}>File caricati</Typography>
+                  {filesList.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">Nessun file caricato.</Typography>
+                  ) : (
+                    <Stack spacing={1}>
+                      {filesList.map((f) => (
+                        <Box key={f.file_id} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{f.filename_original}</Typography>
+                          <Typography variant="caption" color="text.secondary">{f.size_bytes ? `${(f.size_bytes / 1024 / 1024).toFixed(2)} MB` : ''}</Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+              </Stack>
+            </MC>
+          );
+        })()
+      )}
     </>
   );
 }

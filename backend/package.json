@@ -25,6 +25,8 @@
   "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.859.0",
+    "@aws-sdk/client-s3": "^3.864.0",
+    "@aws-sdk/s3-request-presigner": "^3.864.0",
     "@types/pg": "^8.15.5",
     "aws-jwt-verify": "^5.1.0",
     "compression": "^1.7.4",
