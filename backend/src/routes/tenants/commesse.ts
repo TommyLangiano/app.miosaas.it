@@ -34,7 +34,11 @@ function buildSelectList(existing: Set<string>): string {
     { name: 'codice', fallback: "NULL::text AS codice" },
     { name: 'nome', fallback: "NULL::text AS nome" },
     { name: 'descrizione', fallback: "NULL::text AS descrizione" },
-    { name: 'localita', fallback: "NULL::text AS localita" },
+    // Compat: se non c'è citta, tenta localita
+    { name: 'citta', fallback: existing.has('localita') ? 'localita AS citta' : "NULL::text AS citta" },
+    { name: 'via', fallback: "NULL::text AS via" },
+    { name: 'civico', fallback: "NULL::text AS civico" },
+    { name: 'committente_commessa', fallback: "NULL::text AS committente_commessa" },
     { name: 'data_inizio', fallback: 'NULL::date AS data_inizio' },
     { name: 'data_fine_prevista', fallback: 'NULL::date AS data_fine_prevista' },
     { name: 'cig', fallback: "NULL::text AS cig" },
@@ -98,7 +102,11 @@ router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> 
       codice: emptyToNull(body['codice']),
       nome: emptyToNull(body['nome']),
       descrizione: emptyToNull(body['descrizione']),
-      localita: emptyToNull(body['localita'] ?? body['luogo']),
+      // Inserisci su citta se esiste, altrimenti fallback su localita
+      citta: emptyToNull(body['citta'] ?? body['localita'] ?? body['luogo']),
+      via: emptyToNull(body['via']),
+      civico: emptyToNull(body['civico']),
+      committente_commessa: emptyToNull(body['committente_commessa']),
       data_inizio: emptyToNull(body['data_inizio']),
       data_fine_prevista: emptyToNull(body['data_fine_prevista'] ?? body['data_fine']),
       cig: emptyToNull(body['cig']),
@@ -189,9 +197,8 @@ router.put('/:id', async (req: AuthedTenantRequest, res: Response): Promise<void
 
     const existing = await getExistingColumns(req.db);
     const fieldsBase = [
-      'cliente','codice','nome','descrizione','localita',
-      'data_inizio','data_fine_prevista','cig','cup',
-      'importo_commessa'
+      'cliente','codice','nome','descrizione','citta','via','civico','committente_commessa',
+      'data_inizio','data_fine_prevista','cig','cup','importo_commessa'
     ];
     const fields = fieldsBase.filter((f) => existing.has(f));
     const updates: string[] = [];

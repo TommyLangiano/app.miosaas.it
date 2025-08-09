@@ -6,6 +6,7 @@ import Migration002RebuildCommesse from './002-rebuild-commesse';
 import Migration003ForceRebuildCommesse from './003-force-rebuild-commesse';
 import Migration004ExtendCommesseNewFields from './004-extend-commesse-new-fields';
 import Migration005ExtendCommesseTipologiaCliente from './005-extend-commesse-tipologia-cliente';
+import Migration006ExtendCommesseIndirizzoCommittente from './006-extend-commesse-indirizzo-committente';
 
 /**
  * Sistema di migrazioni per MioSaaS
@@ -16,7 +17,8 @@ class MigrationRunner {
     Migration002RebuildCommesse,
     Migration003ForceRebuildCommesse,
     Migration004ExtendCommesseNewFields,
-    Migration005ExtendCommesseTipologiaCliente
+    Migration005ExtendCommesseTipologiaCliente,
+    Migration006ExtendCommesseIndirizzoCommittente
   ];
 
   /**

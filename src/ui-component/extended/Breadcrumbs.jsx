@@ -33,11 +33,11 @@ import { FormattedMessage } from 'react-intl';
 
 // ==============================|| BREADCRUMBS TITLE ||============================== //
 
-function BTitle({ title }) {
+function BTitle({ title, isIntlId = true }) {
   return (
     <Grid>
       <Typography variant="h4" sx={{ fontWeight: 500 }}>
-        <FormattedMessage id={title} />
+        {isIntlId ? <FormattedMessage id={title} /> : title}
       </Typography>
     </Grid>
   );
@@ -128,6 +128,7 @@ export default function Breadcrumbs({
   let itemTitle = '';
   let CollapseIcon;
   let ItemIcon;
+  const isTranslatableKey = (val) => typeof val === 'string' && /^[a-z0-9-]+$/.test(val);
 
   // collapse item
   if (main && main.type === 'collapse') {
@@ -172,7 +173,7 @@ export default function Breadcrumbs({
                 separator={separatorIcon}
                 sx={{ '& .MuiBreadcrumbs-separator': { width: 16, ml: 1.25, mr: 1.25 } }}
               >
-                <Typography component={Link} href="/" color="textSecondary" variant="h6" sx={linkSX}>
+                <Typography component={Link} href="/dashboard" color="textSecondary" variant="h6" sx={linkSX}>
                   {icons && <HomeTwoToneIcon style={iconSX} />}
                   {icon && !icons && <HomeIcon style={{ ...iconSX, marginRight: 0 }} />}
                   {(!icon || icons) && <FormattedMessage id="Dashboard" />}
@@ -220,7 +221,7 @@ export default function Breadcrumbs({
         separator={separatorIcon}
         sx={{ '& .MuiBreadcrumbs-separator': { width: 16, mx: 0.75 } }}
       >
-        <Typography component={Link} href="/" color="textSecondary" variant="h6" sx={linkSX}>
+        <Typography component={Link} href="/dashboard" color="textSecondary" variant="h6" sx={linkSX}>
           {icons && (
             <HomeTwoToneIcon style={{ ...iconSX, ...(themeDirection === ThemeDirection.RTL && { marginLeft: 6, marginRight: 0 }) }} />
           )}
@@ -252,7 +253,13 @@ export default function Breadcrumbs({
                 color={!link.to ? 'text.primary' : 'text.secondary'}
               >
                 {link.icon && <CollapseIcon style={iconSX} />}
-                <FormattedMessage id={link.title} />
+                {link.intlId ? (
+                  <FormattedMessage id={link.intlId} />
+                ) : isTranslatableKey(link.title) ? (
+                  <FormattedMessage id={link.title} />
+                ) : (
+                  link.title
+                )}
               </Typography>
             );
           })}
@@ -279,9 +286,13 @@ export default function Breadcrumbs({
             spacing={1}
             sx={{ p: 1.25, px: card === false ? 0 : 2 }}
           >
-            {title && !titleBottom && <BTitle title={custom ? heading : item?.title} />}
+            {title && !titleBottom && (
+              <BTitle title={custom ? heading : item?.title} isIntlId={!custom || isTranslatableKey(custom ? heading : item?.title)} />
+            )}
             <Grid>{tempContent}</Grid>
-            {title && titleBottom && <BTitle title={custom ? heading : item?.title} />}
+            {title && titleBottom && (
+              <BTitle title={custom ? heading : item?.title} isIntlId={!custom || isTranslatableKey(custom ? heading : item?.title)} />
+            )}
           </Grid>
           {card === false && divider !== false && <Divider sx={{ mt: 2 }} />}
         </Card>
@@ -292,7 +303,7 @@ export default function Breadcrumbs({
   return breadcrumbContent;
 }
 
-BTitle.propTypes = { title: PropTypes.string };
+BTitle.propTypes = { title: PropTypes.string, isIntlId: PropTypes.bool };
 
 Breadcrumbs.propTypes = {
   card: PropTypes.bool,

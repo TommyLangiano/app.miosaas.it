@@ -27,7 +27,7 @@ import { handlerDrawerOpen, useGetMenuMaster } from '../../api/menu';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
-export default function MainLayout({ children }) {
+export default function MainLayout({ children, showBreadcrumbs = true }) {
   const theme = useTheme();
   const downMD = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -70,7 +70,7 @@ export default function MainLayout({ children }) {
           sx={{ ...(!container && { px: { xs: 0 } }), minHeight: 'calc(100vh - 128px)', display: 'flex', flexDirection: 'column' }}
         >
           {/* breadcrumb */}
-          <Breadcrumbs sx={{ mt: 2.5 }} />
+          {showBreadcrumbs && <Breadcrumbs sx={{ mt: 2.5 }} />}
           {children}
           <Footer />
         </Container>
@@ -80,4 +80,4 @@ export default function MainLayout({ children }) {
   );
 }
 
-MainLayout.propTypes = { children: PropTypes.node };
+MainLayout.propTypes = { children: PropTypes.node, showBreadcrumbs: PropTypes.bool };

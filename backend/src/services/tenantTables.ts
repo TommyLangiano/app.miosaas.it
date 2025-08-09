@@ -151,9 +151,14 @@ function createCommesseTableSQL(tableName: string): string {
     CREATE TABLE IF NOT EXISTS ${tableName} (
       id SERIAL PRIMARY KEY,
       cliente VARCHAR(255) NOT NULL,
-      luogo VARCHAR(255),
+      committente_commessa VARCHAR(255),
+      codice VARCHAR(50),
+      nome VARCHAR(255),
+      citta VARCHAR(255),
+      via VARCHAR(255),
+      civico VARCHAR(20),
       data_inizio DATE,
-      data_fine DATE,
+      data_fine_prevista DATE,
       descrizione TEXT,
       imponibile_commessa DECIMAL(12,2),
       iva_commessa DECIMAL(12,2),
@@ -171,6 +176,9 @@ function createCommesseTableSQL(tableName: string): string {
     
     -- Indici ottimizzati per performance
     CREATE INDEX IF NOT EXISTS idx_${tableName}_company_id ON ${tableName}(company_id);
+    CREATE INDEX IF NOT EXISTS idx_${tableName}_codice ON ${tableName}(codice);
+    CREATE INDEX IF NOT EXISTS idx_${tableName}_nome ON ${tableName}(nome);
+    CREATE INDEX IF NOT EXISTS idx_${tableName}_citta ON ${tableName}(citta);
     CREATE INDEX IF NOT EXISTS idx_${tableName}_stato ON ${tableName}(stato);
     CREATE INDEX IF NOT EXISTS idx_${tableName}_created_at ON ${tableName}(created_at);
     CREATE INDEX IF NOT EXISTS idx_${tableName}_created_by ON ${tableName}(created_by);

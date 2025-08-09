@@ -1,32 +1,28 @@
 "use client";
-import { useEffect, useState, type ComponentType } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import axios from '../../src/utils/axios';
-import MainCard from '../../src/ui-component/cards/MainCard';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
-import Grid from '@mui/material/Grid';
-import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Avatar from '@mui/material/Avatar';
-import Tooltip from '@mui/material/Tooltip';
+import Alert from '@mui/material/Alert';
+ 
 import Skeleton from '@mui/material/Skeleton';
 import { IconBriefcase } from '@tabler/icons-react';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
-import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
-import EuroOutlinedIcon from '@mui/icons-material/EuroOutlined';
-import dayjs from 'dayjs';
-import type { Theme } from '@mui/material/styles';
-import type { ChipProps } from '@mui/material/Chip';
+ 
 
   type CommessaRow = {
     id: string | number;
     cliente: string;
     codice?: string | null;
     nome?: string | null;
-    localita?: string | null;
+    citta?: string | null;
+    via?: string | null;
+    civico?: string | null;
+    committente_commessa?: string | null;
     stato?: 'in_corso' | 'chiusa' | string;
     data_inizio?: string | null;
     data_fine_prevista?: string | null;
@@ -37,7 +33,9 @@ export default function CommessePage() {
   const [rows, setRows] = useState<CommessaRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const MC = MainCard as unknown as ComponentType<Record<string, unknown>>;
+  // layout semplificato: niente MainCard, solo righe full-width
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     const companyId = localStorage.getItem('company_id');
@@ -50,12 +48,18 @@ export default function CommessePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const currency = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+  // Mostra messaggio di creazione e pulisci l'URL
+  const [createdJustNow, setCreatedJustNow] = useState<boolean>(false);
+  useEffect(() => {
+    if (searchParams.get('created') === '1') {
+      setCreatedJustNow(true);
+      const newParams = new URLSearchParams(Array.from(searchParams.entries()));
+      newParams.delete('created');
+      router.replace(`/commesse${newParams.toString() ? `?${newParams.toString()}` : ''}`);
+    }
+  }, [searchParams, router]);
 
-  const statusColor = (stato?: string): ChipProps['color'] =>
-    stato === 'in_corso' ? 'success' : stato === 'chiusa' ? 'error' : 'info';
-
-  const statusLabel = (stato?: string) => (stato === 'in_corso' ? 'In corso' : stato === 'chiusa' ? 'Finita' : 'Da avviare');
+  // vista lista compatta: nessuno stato/valuta visualizzato
 
   return (
     <>
@@ -65,103 +69,85 @@ export default function CommessePage() {
         </Button>
       </Stack>
 
+      {createdJustNow && (
+        <Box sx={{ mb: 2 }}>
+          <Alert severity="success">Commessa creata con successo.</Alert>
+        </Box>
+      )}
       {loading ? (
-        <Grid container spacing={2}>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Box key={i} sx={{ width: { xs: '100%', sm: '50%', md: '33.333%', lg: '33.333%' } }}>
-              <MC border boxShadow title="" secondary={null} shadow="">
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
-                  <Skeleton variant="circular" width={36} height={36} />
-                  <Box sx={{ flex: 1 }}>
-                    <Skeleton width="80%" height={20} />
-                    <Skeleton width="40%" height={14} />
-                  </Box>
-                  <Skeleton variant="rounded" width={72} height={22} />
-                </Stack>
-                <Skeleton width="60%" height={16} />
-                <Skeleton width="50%" height={16} />
-                <Divider sx={{ my: 1.25 }} />
-                <Skeleton width="40%" height={18} />
-              </MC>
+        <Stack spacing={1}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Box
+              key={i}
+              sx={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                px: 2.5,
+                py: 1.5,
+                borderRadius: 1,
+                bgcolor: 'background.paper'
+              }}
+            >
+              <Skeleton variant="circular" width={40} height={40} />
+              <Skeleton width="60%" height={24} />
             </Box>
           ))}
-        </Grid>
+        </Stack>
       ) : error ? (
         <Typography color="error">{error}</Typography>
       ) : (
-        <Grid container spacing={2}>
-          {rows.map((r) => (
-            <Box key={r.id} sx={{ width: { xs: '100%', sm: '50%', md: '33.333%', lg: '33.333%' } }}>
-              <MC
-                title={
-                  <Stack direction="row" alignItems="center" spacing={1.25}>
-                    <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>
-                      <IconBriefcase size={18} color="white" />
-                    </Avatar>
-                    <Box sx={{ overflow: 'hidden' }}>
-                      <Tooltip title={r.cliente} placement="top" arrow>
-                        <Typography variant="h4" sx={{ lineHeight: 1.2, fontWeight: 700 }} noWrap>
-                          {r.cliente}
-                        </Typography>
-                      </Tooltip>
-                      <Stack direction="row" spacing={0.75} alignItems="center">
-                        <LocationOnOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }} noWrap>
-                          {r.localita || '—'}
-                        </Typography>
-                      </Stack>
-                    </Box>
-                  </Stack>
-                }
-                secondary={
-                  <Chip
-                    size="small"
-                    label={statusLabel(r.stato)}
-                    sx={(theme: Theme) => ({
-                      bgcolor:
-                        statusColor(r.stato) === 'success'
-                          ? theme.palette.success.main
-                          : statusColor(r.stato) === 'error'
-                          ? theme.palette.error.main
-                          : theme.palette.info.main,
-                      color: theme.palette.common.white,
-                      fontWeight: 700
-                    })}
-                  />
-                }
-                headerSX={{ '& .MuiCardHeader-action': { alignSelf: 'center' } }}
-                contentSX={{ pt: 1.25 }}
-                border
-                boxShadow
-                shadow=""
+        <Stack spacing={1}>
+          {rows.map((r) => {
+            const codice = r.codice || '—';
+            const nome = r.nome || '—';
+            const citta = r.citta || '—';
+            return (
+              <Box
+                key={r.id}
                 sx={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  px: 2.5,
+                  py: 1.5,
+                  borderRadius: 1,
                   bgcolor: 'background.paper',
-                  ':hover': { transform: 'translateY(-2px)', transition: 'all .15s ease-in-out' }
+                  ':hover': { bgcolor: 'action.hover' }
                 }}
+                component={Link}
+                href={`/commesse/${r.id}`}
               >
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.5 }}>
-                  <CalendarMonthOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-                  <Typography variant="body2">
-                    {r.data_inizio ? dayjs(r.data_inizio).format('DD/MM/YYYY') : '—'}
-                    {r.data_fine_prevista ? ` → ${dayjs(r.data_fine_prevista).format('DD/MM/YYYY')}` : ''}
+                <Box sx={{ color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <IconBriefcase size={22} color="currentColor" />
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{ fontSize: '1.2rem', fontWeight: 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  >
+                    <Box component="span" sx={{ fontWeight: 700 }}>{codice}</Box>
+                    {' - '}
+                    <Box component="span" sx={{ fontWeight: 700 }}>{nome}</Box>
                   </Typography>
-                </Stack>
-                <Divider sx={{ my: 1.25 }} />
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <EuroOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    {r.importo_commessa != null ? currency.format(Number(r.importo_commessa)) : '—'}
-                  </Typography>
-                </Stack>
-              </MC>
-            </Box>
-          ))}
-            {rows.length === 0 && (
+                  <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                    <LocationOnOutlinedIcon fontSize="small" sx={{ color: 'secondary.main' }} />
+                    <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }} noWrap>
+                      {citta}
+                    </Typography>
+                  </Stack>
+                </Box>
+              </Box>
+            );
+          })}
+          {rows.length === 0 && (
             <Box sx={{ width: '100%' }}>
               <Typography>Nessuna commessa trovata.</Typography>
             </Box>
           )}
-        </Grid>
+        </Stack>
       )}
     </>
   );

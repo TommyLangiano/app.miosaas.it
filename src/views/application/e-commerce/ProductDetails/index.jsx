@@ -1,5 +1,6 @@
 'use client';
 import PropTypes from 'prop-types';
+import React from 'react';
 
 // next
 import { useParams, usePathname } from 'next/navigation';

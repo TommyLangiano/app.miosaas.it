@@ -77,8 +77,10 @@ export const authenticateToken = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Estrai il token dall'header Authorization
-    const authHeader = req.headers.authorization;
+    // Estrai il token dall'header Authorization (fallback su header alternativi)
+    const authHeader = req.headers.authorization
+      || (req.headers['x-authorization'] as string | undefined)
+      || (req.headers['x-access-token'] as string | undefined);
     
     if (!authHeader) {
       res.status(401).json({
