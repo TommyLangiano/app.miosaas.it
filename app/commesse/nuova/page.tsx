@@ -11,10 +11,7 @@ import Stack from '@mui/material/Stack';
 import MenuItem from '@mui/material/MenuItem';
 import Alert from '@mui/material/Alert';
 import Typography from '@mui/material/Typography';
-import Paper from '@mui/material/Paper';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import IconButton from '@mui/material/IconButton';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+// Upload file UI rimosso
 
 export default function NuovaCommessaPage() {
   const [form, setForm] = useState({
@@ -34,9 +31,7 @@ export default function NuovaCommessaPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [dragOver, setDragOver] = useState(false);
-  const [fileErrors, setFileErrors] = useState<string[]>([]);
+  // Stato file rimosso
 
   const breadcrumbLinks = useMemo(
     () => [
@@ -52,41 +47,7 @@ export default function NuovaCommessaPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const MAX_FILE_MB = 20;
-  const ACCEPTED_MIME = new Set([
-    'image/png', 'image/jpeg', 'image/webp', 'image/gif',
-    'application/pdf',
-    'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  ]);
-
-  function validateFiles(files: File[]): { ok: File[]; errors: string[] } {
-    const errors: string[] = [];
-    const ok: File[] = [];
-    for (const f of files) {
-      const sizeMb = f.size / 1024 / 1024;
-      if (sizeMb > MAX_FILE_MB) {
-        errors.push(`${f.name}: supera ${MAX_FILE_MB} MB`);
-        continue;
-      }
-      if (f.type && !ACCEPTED_MIME.has(f.type)) {
-        errors.push(`${f.name}: tipo non consentito (${f.type || 'sconosciuto'})`);
-        continue;
-      }
-      ok.push(f);
-    }
-    return { ok, errors };
-  }
-
-  function handleAddFiles(files: File[]) {
-    const { ok, errors } = validateFiles(files);
-    if (errors.length > 0) setFileErrors((prev) => [...prev, ...errors]);
-    if (ok.length > 0) setSelectedFiles((prev) => [...prev, ...ok]);
-  }
-
-  function removeFileAt(index: number) {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-  }
+  // Helpers upload rimossi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,25 +60,22 @@ export default function NuovaCommessaPage() {
       const headers: Record<string, string> = {};
       if (companyId) headers['X-Company-ID'] = companyId;
 
-      const fd = new FormData();
-      fd.append('cliente', form.cliente);
-      fd.append('cliente_tipo', form.cliente_tipo);
-      fd.append('tipologia_commessa', form.tipologia_commessa);
-      fd.append('codice', form.codice);
-      fd.append('nome', form.nome);
-      if (form.descrizione) fd.append('descrizione', form.descrizione);
-      fd.append('localita', form.localita);
-      if (form.data_inizio) fd.append('data_inizio', form.data_inizio);
-      if (form.data_fine_prevista) fd.append('data_fine_prevista', form.data_fine_prevista);
-      if (form.cig) fd.append('cig', form.cig);
-      if (form.cup) fd.append('cup', form.cup);
-      if (form.importo_commessa) fd.append('importo_commessa', String(Number(form.importo_commessa)));
-      selectedFiles.forEach((f) => fd.append('files', f));
-
-      const res = await axios.post('/api/tenants/commesse', fd, {
-        headers: { ...headers, 'Content-Type': 'multipart/form-data' }
-      });
-      setSuccess('Commessa creata con successo con file allegati.');
+      const body = {
+        cliente: form.cliente,
+        cliente_tipo: form.cliente_tipo,
+        tipologia_commessa: form.tipologia_commessa,
+        codice: form.codice,
+        nome: form.nome,
+        descrizione: form.descrizione || null,
+        localita: form.localita,
+        data_inizio: form.data_inizio || null,
+        data_fine_prevista: form.data_fine_prevista || null,
+        cig: form.cig || null,
+        cup: form.cup || null,
+        importo_commessa: form.importo_commessa ? Number(form.importo_commessa) : null
+      } as const;
+      await axios.post('/api/tenants/commesse', body, { headers });
+      setSuccess('Commessa creata con successo.');
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Errore nella creazione';
       setError(message);
@@ -189,65 +147,7 @@ export default function NuovaCommessaPage() {
             <Box sx={{ gridColumn: '1 / -1' }}>
               <TextField name="importo_commessa" label="Importo Commessa" type="number" value={form.importo_commessa} onChange={handleChange} fullWidth required />
             </Box>
-            <Box sx={{ gridColumn: '1 / -1' }}>
-              <Paper
-                variant="outlined"
-                sx={{ p: 3, textAlign: 'center', borderStyle: 'dashed', borderColor: dragOver ? 'primary.main' : 'divider', bgcolor: dragOver ? 'action.hover' : 'transparent' }}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOver(false);
-                  const files = Array.from(e.dataTransfer.files || []);
-                  handleAddFiles(files);
-                }}
-              >
-                <Stack spacing={1} alignItems="center">
-                  <CloudUploadIcon color={dragOver ? 'primary' : 'action'} />
-                  <Typography variant="subtitle2">Trascina qui i file o clicca per selezionare</Typography>
-                  <input
-                    id="file-input"
-                    type="file"
-                    multiple
-                    accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    onChange={(e) => {
-                      if (!e.target.files) return;
-                      handleAddFiles(Array.from(e.target.files));
-                      // reset per poter riselezionare stessi file
-                      try { e.target.value = ''; } catch {}
-                    }}
-                    style={{ display: 'none' }}
-                  />
-                  <Button variant="outlined" onClick={() => document.getElementById('file-input')?.click()}>Scegli file</Button>
-                  {selectedFiles.length > 0 && (
-                    <Typography variant="caption" color="text.secondary">
-                      {selectedFiles.length} file selezionati
-                    </Typography>
-                  )}
-                </Stack>
-              </Paper>
-              {/* Lista file selezionati */}
-              {selectedFiles.length > 0 && (
-                <Box sx={{ mt: 1 }}>
-                  {selectedFiles.map((f, idx) => (
-                    <Box key={`${f.name}-${f.lastModified}-${idx}`} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5 }}>
-                      <Typography variant="body2">{f.name} — {(f.size / 1024 / 1024).toFixed(2)} MB</Typography>
-                      <IconButton size="small" aria-label="rimuovi" onClick={() => removeFileAt(idx)}>
-                        <DeleteOutlineIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  ))}
-                </Box>
-              )}
-              {/* Errori file */}
-              {fileErrors.length > 0 && (
-                <Box sx={{ mt: 1 }}>
-                  {fileErrors.map((msg, i) => (
-                    <Alert key={i} severity="warning" sx={{ my: 0.5 }}>{msg}</Alert>
-                  ))}
-                </Box>
-              )}
-            </Box>
+            {/* Sezione upload rimossa */}
             {form.cliente_tipo === 'pubblico' && (
               <>
                 <Box>
@@ -270,7 +170,7 @@ export default function NuovaCommessaPage() {
         );
       })()}
 
-      {/* Upload separato rimosso: ora i file vengono inviati insieme al form */}
+      {/* Upload file rimosso */}
     </>
   );
 }
