@@ -7,6 +7,8 @@ import { fromInstanceMetadata } from '@aws-sdk/credential-providers';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import slugify from 'slugify';
 import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import FormData from 'form-data';
 
 type AuthedTenantRequest = Request & {
   user?: { sub: string; dbUserId?: string };
@@ -16,73 +18,56 @@ type AuthedTenantRequest = Request & {
 
 const router = Router();
 
+// Multer per gestione multipart (file in memoria)
+const upload = multer({ storage: multer.memoryStorage() });
+
 router.use(authenticateToken);
 router.use(tenantMiddleware);
 
-async function getTableColumns(db: AuthedTenantRequest['db'], tableName: string): Promise<Set<string>> {
-  const q = `
-    SELECT column_name
-    FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = $1
-  `;
-  const r = await db!.query(q, [tableName]);
-  const cols = new Set<string>();
-  for (const row of r.rows as Array<{ column_name: string }>) cols.add(row.column_name);
-  return cols;
+// Helpers dinamici per compatibilità schema
+async function getExistingColumns(db: AuthedTenantRequest['db']): Promise<Set<string>> {
+  const res = await db!.query(
+    `SELECT column_name FROM information_schema.columns WHERE table_name = 'commesse'`
+  );
+  return new Set(res.rows.map((r) => String(r.column_name)));
 }
 
-function buildCommesseSelect(columns: Set<string>, includeArchived: boolean): { sql: string; params: unknown[] } {
-  const selected: string[] = [];
-  // base fields with safe fallbacks
-  selected.push('id');
-  selected.push(columns.has('cliente') ? 'cliente' : 'NULL::varchar AS cliente');
-  selected.push(columns.has('codice') ? 'codice' : 'NULL::varchar AS codice');
-  selected.push(columns.has('nome') ? 'nome' : (columns.has('cliente') ? 'cliente AS nome' : 'NULL::varchar AS nome'));
-  // localita: preferisce colonna moderna, fallback a luogo se esiste
-  if (columns.has('localita')) selected.push('localita');
-  else if (columns.has('luogo')) selected.push('luogo AS localita');
-  else selected.push('NULL::varchar AS localita');
-  selected.push(columns.has('descrizione') ? 'descrizione' : 'NULL::text AS descrizione');
-  selected.push(columns.has('data_inizio') ? 'data_inizio' : 'NULL::date AS data_inizio');
-  if (columns.has('data_fine_prevista')) selected.push('data_fine_prevista');
-  else if (columns.has('data_fine')) selected.push('data_fine AS data_fine_prevista');
-  else selected.push('NULL::date AS data_fine_prevista');
-  selected.push(columns.has('cig') ? 'cig' : 'NULL::varchar AS cig');
-  selected.push(columns.has('cup') ? 'cup' : 'NULL::varchar AS cup');
-  selected.push(columns.has('imponibile_commessa') ? 'imponibile_commessa' : 'NULL::numeric AS imponibile_commessa');
-  selected.push(columns.has('iva_commessa') ? 'iva_commessa' : 'NULL::numeric AS iva_commessa');
-  selected.push(columns.has('importo_commessa') ? 'importo_commessa' : 'NULL::numeric AS importo_commessa');
-  selected.push(columns.has('archiviata') ? 'archiviata' : 'false AS archiviata');
-  selected.push(columns.has('stato') ? 'stato' : `('da_avviare')::varchar AS stato`);
-  selected.push(columns.has('created_by') ? 'created_by' : 'NULL::uuid AS created_by');
-  selected.push(columns.has('created_at') ? 'created_at' : 'NULL::timestamp AS created_at');
-  selected.push(columns.has('updated_at') ? 'updated_at' : 'NULL::timestamp AS updated_at');
-
-  let sql = `SELECT ${selected.join(', ')} FROM commesse WHERE 1=1`;
-  const params: unknown[] = [];
-  // company_id filter if exists
-  if (columns.has('company_id')) {
-    sql += ` AND company_id = $${params.length + 1}`;
-    // company_id param verrà pushato dal chiamante
-  }
-  if (!includeArchived && columns.has('archiviata')) {
-    sql += ' AND archiviata = false';
-  }
-  sql += ' ORDER BY created_at DESC LIMIT 200';
-  return { sql, params };
+function buildSelectList(existing: Set<string>): string {
+  const want: Array<{ name: string; fallback: string }> = [
+    { name: 'id', fallback: 'NULL::uuid AS id' },
+    { name: 'company_id', fallback: 'NULL::uuid AS company_id' },
+    { name: 'cliente', fallback: "NULL::text AS cliente" },
+    { name: 'cliente_tipo', fallback: "NULL::text AS cliente_tipo" },
+    { name: 'tipologia_commessa', fallback: "NULL::text AS tipologia_commessa" },
+    { name: 'codice', fallback: "NULL::text AS codice" },
+    { name: 'nome', fallback: "NULL::text AS nome" },
+    { name: 'descrizione', fallback: "NULL::text AS descrizione" },
+    { name: 'localita', fallback: "NULL::text AS localita" },
+    { name: 'data_inizio', fallback: 'NULL::date AS data_inizio' },
+    { name: 'data_fine_prevista', fallback: 'NULL::date AS data_fine_prevista' },
+    { name: 'cig', fallback: "NULL::text AS cig" },
+    { name: 'cup', fallback: "NULL::text AS cup" },
+    { name: 'importo_commessa', fallback: 'NULL::numeric AS importo_commessa' },
+    { name: 'created_by', fallback: "NULL::text AS created_by" },
+    { name: 'updated_by', fallback: "NULL::text AS updated_by" },
+    { name: 'created_at', fallback: 'NULL::timestamp AS created_at' },
+    { name: 'updated_at', fallback: 'NULL::timestamp AS updated_at' }
+  ];
+  return want
+    .map((w) => (existing.has(w.name) ? w.name : w.fallback))
+    .join(', ');
 }
+
+// Query fissa con soli campi definitivi
 
 // GET /api/tenants/commesse → elenco commesse dell'azienda
 router.get('/', async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     const companyId = req.tenant!.companyId;
-    const includeArchived = String(req.query.includeArchived || 'false') === 'true';
-
-    const columns = await getTableColumns(req.db!, 'commesse');
-    const { sql } = buildCommesseSelect(columns, includeArchived);
-    const params: unknown[] = [];
-    if (columns.has('company_id')) params.push(companyId);
-    const result = await req.db!.query(sql, params);
+    const existing = await getExistingColumns(req.db);
+    const selectList = buildSelectList(existing);
+    const sql = `SELECT ${selectList} FROM commesse WHERE company_id = $1 ORDER BY created_at DESC NULLS LAST LIMIT 200`;
+    const result = await req.db!.query(sql, [companyId]);
     res.status(200).json({ status: 'success', data: result.rows });
   } catch (error) {
     console.error('Errore GET commesse:', error);
@@ -91,12 +76,37 @@ router.get('/', async (req: AuthedTenantRequest, res: Response): Promise<void> =
 });
 
 // POST /api/tenants/commesse → crea una nuova commessa
-router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> => {
+router.post('/', upload.array('files', 20), async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.dbUserId || req.user!.sub; // preferisci UUID DB
     const companyId = req.tenant!.companyId;
 
     const body = (req.body || {}) as Record<string, unknown>;
+    // Se configurato, proxyiamo l'intera richiesta multipart verso il backend su EC2
+    const uploadProxy = process.env.UPLOAD_PROXY_URL;
+    if (uploadProxy && process.env.DISABLE_UPLOAD_PROXY !== 'true') {
+      const proxyUrl = `${uploadProxy.replace(/\/$/, '')}/api/tenants/commesse`;
+      const form = new FormData();
+      for (const [k, v] of Object.entries(body)) {
+        if (v !== undefined && v !== null) form.append(k, String(v));
+      }
+      const files = (req.files as unknown as Array<Express.Multer.File>) || [];
+      for (const f of files) {
+        form.append('files', f.buffer, { filename: f.originalname, contentType: f.mimetype });
+      }
+      const headers: Record<string, string> = {
+        ...form.getHeaders(),
+        'x-company-id': companyId
+      };
+      if (req.headers.authorization) headers['authorization'] = String(req.headers.authorization);
+      type MinimalFetchResponse = { text: () => Promise<string>; status: number };
+      const fetchFn = fetch as unknown as (input: string, init?: unknown) => Promise<MinimalFetchResponse>;
+      const r = await fetchFn(proxyUrl, { method: 'POST', headers, body: form as unknown });
+      const text = await r.text();
+      res.status(r.status).type('application/json').send(text);
+      return;
+    }
+
 
     const emptyToNull = (v: unknown): unknown => {
       if (v === undefined || v === null) return null;
@@ -104,15 +114,19 @@ router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> 
       return v;
     };
 
-    if (!body['cliente']) {
-      res.status(400).json({ status: 'error', message: 'Campo cliente richiesto' });
-      return;
-    }
+    // Il campo cliente non è più obbligatorio: se assente useremo eventuale fallback o NULL
 
-    // Inserimento dinamico in base alle colonne esistenti
-    const columns = await getTableColumns(req.db!, 'commesse');
-    const dataMap: Record<string, unknown> = {
-      cliente: emptyToNull(body['cliente']),
+    // Prepara valori con fallback robusti (stringhe vuote considerate assenti)
+    const rawCliente = typeof body['cliente'] === 'string' ? (body['cliente'] as string).trim() : '';
+    const clienteTipoValue = String((body['cliente_tipo'] ?? body['clienteTipo'] ?? 'privato') as string);
+    const tipologiaCommessaValue = String((body['tipologia_commessa'] ?? body['tipologiaCommessa'] ?? 'appalto') as string);
+
+    // Costruiamo i valori da inserire
+    const fullDataMap: Record<string, unknown> = {
+      // Se cliente è vuoto, usa cliente_tipo per rispettare il NOT NULL a schema
+      cliente: rawCliente !== '' ? rawCliente : clienteTipoValue,
+      cliente_tipo: emptyToNull(body['cliente_tipo'] ?? body['clienteTipo'] ?? 'privato'),
+      tipologia_commessa: emptyToNull(tipologiaCommessaValue),
       codice: emptyToNull(body['codice']),
       nome: emptyToNull(body['nome']),
       descrizione: emptyToNull(body['descrizione']),
@@ -121,17 +135,20 @@ router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> 
       data_fine_prevista: emptyToNull(body['data_fine_prevista'] ?? body['data_fine']),
       cig: emptyToNull(body['cig']),
       cup: emptyToNull(body['cup']),
-      imponibile_commessa: body['imponibile_commessa'] ?? null,
-      iva_commessa: body['iva_commessa'] ?? null,
       importo_commessa: body['importo_commessa'] ?? null,
-      archiviata: (body['archiviata'] as boolean) ?? false,
-      stato: (body['stato'] as string) ?? 'da_avviare',
       company_id: companyId,
       created_by: userId
     };
 
-    // Validazione unicità codice per azienda se la colonna esiste ed è valorizzata
-    if (columns.has('codice') && dataMap.codice) {
+    // Inserimento dinamico in base alle colonne esistenti
+    const existing = await getExistingColumns(req.db);
+    const dataMap: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(fullDataMap)) {
+      if (existing.has(k)) dataMap[k] = v;
+    }
+
+    // Validazione unicità codice per azienda
+    if (dataMap.codice) {
       const dup = await req.db!.query(
         'SELECT 1 FROM commesse WHERE company_id = $1 AND codice = $2 LIMIT 1',
         [companyId, dataMap.codice]
@@ -141,12 +158,71 @@ router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> 
         return;
       }
     }
-    const insertKeys = Object.keys(dataMap).filter((k) => columns.has(k));
+    // Iniziamo transazione per inserimento commessa + metadati file
+    await req.db!.query('BEGIN');
+    const insertKeys = Object.keys(dataMap);
     const insertVals = insertKeys.map((k) => dataMap[k]);
     const placeholders = insertKeys.map((_, i) => `$${i + 1}`).join(', ');
     const insertQuery = `INSERT INTO commesse (${insertKeys.join(', ')}) VALUES (${placeholders}) RETURNING *`;
     const result = await req.db!.query(insertQuery, insertVals);
-    const row = result.rows[0];
+    const row = result.rows[0] as { id: string };
+
+    // Se ci sono file, caricali su S3 e salva in commessa_files
+    const files = (req.files as unknown as Array<Express.Multer.File>) || [];
+    const uploadedKeys: Array<{ bucket: string; key: string }> = [];
+
+    if (files.length > 0) {
+      // Recupera bucket azienda
+      const bucketRes = await req.db!.query('SELECT s3_bucket_name FROM companies WHERE id = $1 LIMIT 1', [companyId]);
+      const bucketRow = bucketRes.rows[0] as { s3_bucket_name?: string } | undefined;
+      const bucket: string | undefined = bucketRow?.s3_bucket_name;
+      if (!bucket) {
+        await req.db!.query('ROLLBACK');
+        res.status(500).json({ status: 'error', message: 'Bucket S3 non configurato per l’azienda' });
+        return;
+      }
+
+      const region = process.env.AWS_S3_BUCKET_REGION || process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'eu-north-1';
+      const s3 = new S3Client({ region });
+
+      for (const f of files) {
+        const fileId = uuidv4();
+        const safeName = slugify(f.originalname, { lower: true, strict: true });
+        const s3Key = `commesse/${row.id}/${fileId}-${safeName}`;
+
+        // Upload su S3
+        const put = new PutObjectCommand({
+          Bucket: bucket,
+          Key: s3Key,
+          Body: f.buffer,
+          ContentType: f.mimetype || 'application/octet-stream'
+        });
+        await s3.send(put);
+        uploadedKeys.push({ bucket, key: s3Key });
+
+        // Salva metadati nel DB
+        await req.db!.query(
+          `INSERT INTO commessa_files (
+            id, commessa_id, company_id,
+            filename_original, s3_key, content_type, size_bytes, checksum_sha256,
+            uploaded_by
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [
+            fileId,
+            row.id,
+            companyId,
+            f.originalname,
+            s3Key,
+            f.mimetype || null,
+            f.size ?? null,
+            null,
+            userId
+          ]
+        );
+      }
+    }
+
+    await req.db!.query('COMMIT');
     res.status(201).json({ status: 'success', data: { id: row.id, commessa: row } });
   } catch (error) {
     const pgErr = error as { code?: string; constraint?: string };
@@ -155,7 +231,10 @@ router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> 
       return;
     }
     console.error('Errore POST commesse:', error);
-    res.status(500).json({ status: 'error', message: 'Errore nella creazione commessa' });
+    try {
+      await req.db!.query('ROLLBACK');
+    } catch {}
+    res.status(500).json({ status: 'error', message: 'Errore nella creazione commessa con file' });
   }
 });
 
@@ -363,11 +442,11 @@ router.get('/:id', async (req: AuthedTenantRequest, res: Response): Promise<void
     try {
     const query = `SELECT * FROM commesse WHERE id = $1 AND company_id = $2 LIMIT 1`;
     const result = await req.db!.query(query, [id, companyId]);
-      if (result.rows.length === 0) {
-        res.status(404).json({ status: 'error', message: 'Commessa non trovata' });
-        return;
-      }
-      res.status(200).json({ status: 'success', data: result.rows[0] });
+    if (result.rows.length === 0) {
+      res.status(404).json({ status: 'error', message: 'Commessa non trovata' });
+      return;
+    }
+    res.status(200).json({ status: 'success', data: result.rows[0] });
     } catch (e: unknown) {
       const errMsg = (e as Error)?.message || '';
       const isUndefinedColumn = errMsg.includes('column') && errMsg.includes('does not exist');
@@ -387,11 +466,13 @@ router.put('/:id', async (req: AuthedTenantRequest, res: Response): Promise<void
     const id = req.params.id;
     const companyId = req.tenant!.companyId;
 
-    const fields = [
+    const existing = await getExistingColumns(req.db);
+    const fieldsBase = [
       'cliente','codice','nome','descrizione','localita',
       'data_inizio','data_fine_prevista','cig','cup',
-      'imponibile_commessa','iva_commessa','importo_commessa','archiviata','stato'
+      'importo_commessa'
     ];
+    const fields = fieldsBase.filter((f) => existing.has(f));
     const updates: string[] = [];
     const params: unknown[] = [];
     let idx = 1;
@@ -434,7 +515,7 @@ router.delete('/:id', async (req: AuthedTenantRequest, res: Response): Promise<v
     const id = req.params.id;
     const companyId = req.tenant!.companyId;
     const result = await req.db!.query(
-      `UPDATE commesse SET archiviata = true, stato = 'chiusa', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND company_id = $2 RETURNING id`,
+      `UPDATE commesse SET archiviata = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND company_id = $2 RETURNING id`,
       [id, companyId]
     );
     if ((result.rowCount || 0) === 0) {

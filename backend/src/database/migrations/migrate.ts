@@ -5,6 +5,7 @@ import Migration001CreateGlobalTables from './001-create-global-tables';
 import Migration002RebuildCommesse from './002-rebuild-commesse';
 import Migration003ForceRebuildCommesse from './003-force-rebuild-commesse';
 import Migration004ExtendCommesseNewFields from './004-extend-commesse-new-fields';
+import Migration005ExtendCommesseTipologiaCliente from './005-extend-commesse-tipologia-cliente';
 
 /**
  * Sistema di migrazioni per MioSaaS
@@ -14,7 +15,8 @@ class MigrationRunner {
     Migration001CreateGlobalTables,
     Migration002RebuildCommesse,
     Migration003ForceRebuildCommesse,
-    Migration004ExtendCommesseNewFields
+    Migration004ExtendCommesseNewFields,
+    Migration005ExtendCommesseTipologiaCliente
   ];
 
   /**
