@@ -5,6 +5,7 @@ import { S3Client, PutObjectCommand, GetBucketLocationCommand } from '@aws-sdk/c
 import { STSClient, GetCallerIdentityCommand } from '@aws-sdk/client-sts';
 import { fromInstanceMetadata } from '@aws-sdk/credential-providers';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { logAwsCallerOnce, presignPutObject } from '../../services/aws-s3';
 import slugify from 'slugify';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
@@ -68,6 +69,7 @@ router.get('/', async (req: AuthedTenantRequest, res: Response): Promise<void> =
     const selectList = buildSelectList(existing);
     const sql = `SELECT ${selectList} FROM commesse WHERE company_id = $1 ORDER BY created_at DESC NULLS LAST LIMIT 200`;
     const result = await req.db!.query(sql, [companyId]);
+    console.log(`[COMMESSE][GET] rows: ${(result.rows || []).length}`);
     res.status(200).json({ status: 'success', data: result.rows });
   } catch (error) {
     console.error('Errore GET commesse:', error);
@@ -359,15 +361,8 @@ router.post('/:id/files/presign', async (req: AuthedTenantRequest, res: Response
       AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION
     });
 
-    const s3 = new S3Client({ region: finalRegion, credentials });
-
-    const command = new PutObjectCommand({
-      Bucket: bucket,
-      Key: s3Key,
-      ContentType: resolvedContentType
-    });
-
-    const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 600 }); // 10 minuti
+    await logAwsCallerOnce();
+    const presignedUrl = await presignPutObject({ bucket, key: s3Key, contentType: resolvedContentType, expiresIn: 600 });
 
     res.status(200).json({ status: 'success', data: { presignedUrl, file_id: fileId, s3_key: s3Key, content_type: resolvedContentType } });
   } catch (error) {

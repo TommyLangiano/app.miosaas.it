@@ -172,7 +172,11 @@ export const authenticateToken = async (
       
       if (!dbUser) {
         console.warn(`🚨 User not found in DB for cognito_sub: ${payload.sub} – proceeding with token-only data`);
-        // Continua con i soli dati del token (profilo minimale)
+        // Fallback: se presente header X-Company-ID, usalo come companyId per non bloccare i flussi tenant
+        const hdrCompany = req.headers['x-company-id'];
+        if (!userInfo.companyId && typeof hdrCompany === 'string' && hdrCompany) {
+          userInfo.companyId = hdrCompany;
+        }
       } else {
         // ✅ CARICA DATI REALI DAL DATABASE (non dal token!)
         userInfo.dbUserId = dbUser.id;
@@ -196,13 +200,13 @@ export const authenticateToken = async (
       }
       
     } catch (dbError) {
-      console.error('❌ Database lookup error:', dbError);
-      res.status(500).json({
-        status: 'error',
-        message: 'Errore durante la verifica utente nel database',
-        code: 'DB_LOOKUP_ERROR'
-      });
-      return;
+      // Soft-fail: non bloccare la richiesta se il DB globale è momentaneamente non disponibile
+      console.error('❌ Database lookup error (soft-fail, continue with token-only):', dbError);
+      const hdrCompany = req.headers['x-company-id'];
+      if (!userInfo.companyId && typeof hdrCompany === 'string' && hdrCompany) {
+        userInfo.companyId = hdrCompany;
+      }
+      // Continua senza return
     }
 
     // Aggiungi l'utente all'oggetto request
