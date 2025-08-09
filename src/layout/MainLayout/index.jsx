@@ -39,6 +39,12 @@ export default function MainLayout({ children, showBreadcrumbs = true }) {
     handlerDrawerOpen(!miniDrawer);
   }, [miniDrawer]);
 
+  // Chiudi il drawer su mobile per evitare overlay che intercettano i click
+  useEffect(() => {
+    if (downMD && drawerOpen) handlerDrawerOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [downMD]);
+
   useEffect(() => {
     if (downMD) handlerDrawerOpen(false);
   }, [downMD]);

@@ -97,7 +97,7 @@ function Sidebar() {
               borderRight: 'none'
             }
           }}
-          ModalProps={{ keepMounted: true }}
+          ModalProps={{ keepMounted: true, hideBackdrop: true }}
           color="inherit"
         >
           {downMD && logo}
