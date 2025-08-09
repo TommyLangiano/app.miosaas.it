@@ -38,7 +38,7 @@ type TenantDb = {
 type RequestWithTenant = Request & {
   db?: TenantDb;
   tenant?: { companyId: string; isValidTenant: boolean };
-  user?: { companyId?: string; sub?: string; email?: string };
+  user?: { companyId?: string; sub?: string; email?: string; dbUserId?: string };
 };
 
 /**
@@ -53,8 +53,26 @@ export const tenantMiddleware = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Estrai companyId dall'header X-Company-ID o dal token JWT
-    const companyId = req.headers['x-company-id'] as string || req.user?.companyId;
+    // Estrai companyId: header → token → lookup DB
+    let companyId = (req.headers['x-company-id'] as string) || (req.headers['X-Company-ID'] as string) || req.user?.companyId;
+
+    if (!companyId) {
+      try {
+        const userId = req.user?.dbUserId || req.user?.sub;
+        if (userId) {
+          // Prova lookup per id, fallback per cognito_sub
+          const byId = await db.query('SELECT company_id FROM users WHERE id = $1 LIMIT 1', [userId]);
+          companyId = (byId.rows?.[0] as { company_id?: string } | undefined)?.company_id || null as unknown as string;
+          if (!companyId) {
+            const bySub = await db.query('SELECT company_id FROM users WHERE cognito_sub = $1 LIMIT 1', [userId]);
+            companyId = (bySub.rows?.[0] as { company_id?: string } | undefined)?.company_id || undefined;
+          }
+        }
+      } catch (e) {
+        // log minimale per debug
+        console.warn('[tenant] lookup company failed:', e instanceof Error ? e.message : String(e));
+      }
+    }
 
     if (!companyId) {
       res.status(400).json({

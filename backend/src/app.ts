@@ -69,7 +69,7 @@ class App {
         return callback(null, false);
       },
       credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Company-ID', 'x-company-id'],
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       optionsSuccessStatus: 204
     };
