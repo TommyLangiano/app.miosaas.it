@@ -20,6 +20,16 @@ axiosServices.interceptors.request.use(
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
+
+    // Imposta sempre X-Company-ID se disponibile negli storage
+    try {
+      const companyFromStorage =
+        (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem('company_id') || sessionStorage.getItem('X-Company-ID'))) ||
+        (typeof localStorage !== 'undefined' && (localStorage.getItem('company_id') || localStorage.getItem('X-Company-ID')));
+      if (companyFromStorage) {
+        config.headers['X-Company-ID'] = companyFromStorage;
+      }
+    } catch {}
     return config;
   },
   (error) => {
