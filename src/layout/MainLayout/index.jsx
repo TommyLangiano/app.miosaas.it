@@ -35,9 +35,7 @@ export default function MainLayout({ children, showBreadcrumbs = true }) {
   const { menuMaster, menuMasterLoading } = useGetMenuMaster();
   const drawerOpen = menuMaster?.isDashboardDrawerOpened;
 
-  useEffect(() => {
-    handlerDrawerOpen(!miniDrawer);
-  }, [miniDrawer]);
+  // Rimuoviamo l'auto-toggle del drawer: apri/chiudi solo su interazione esplicita
 
   // Chiudi il drawer su mobile per evitare overlay che intercettano i click
   useEffect(() => {
