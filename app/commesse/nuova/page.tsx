@@ -15,10 +15,16 @@ import Typography from '@mui/material/Typography';
 export default function NuovaCommessaPage() {
   const [form, setForm] = useState({
     cliente: '',
+    codice: '',
+    nome: '',
     luogo: '',
+    localita: '',
     data_inizio: '',
     data_fine: '',
+    data_fine_prevista: '',
     descrizione: '',
+    cig: '',
+    cup: '',
     imponibile_commessa: '',
     iva_commessa: '',
     importo_commessa: '',
@@ -64,6 +70,12 @@ export default function NuovaCommessaPage() {
       if (companyId) headers['X-Company-ID'] = companyId;
       const body = {
         ...form,
+        // mapping retrocompatibile: se localita non valorizzata, usa luogo; se data_fine_prevista non valorizzata, usa data_fine
+        localita: form.localita || form.luogo || '',
+        data_fine_prevista: form.data_fine_prevista || form.data_fine || '',
+        // rimuovi chiavi legacy lato invio
+        luogo: undefined,
+        data_fine: undefined,
         imponibile_commessa: form.imponibile_commessa ? Number(form.imponibile_commessa) : null,
         iva_commessa: form.iva_commessa ? Number(form.iva_commessa) : null,
         importo_commessa: form.importo_commessa ? Number(form.importo_commessa) : null
@@ -93,16 +105,28 @@ export default function NuovaCommessaPage() {
               <TextField name="cliente" label="Cliente" value={form.cliente} onChange={handleChange} fullWidth required />
             </Box>
             <Box>
-              <TextField name="luogo" label="Luogo" value={form.luogo} onChange={handleChange} fullWidth />
+              <TextField name="codice" label="Codice" value={form.codice} onChange={handleChange} fullWidth />
+            </Box>
+            <Box sx={{ gridColumn: '1 / -1' }}>
+              <TextField name="nome" label="Nome commessa" value={form.nome} onChange={handleChange} fullWidth />
+            </Box>
+            <Box>
+              <TextField name="localita" label="Località" value={form.localita} onChange={handleChange} fullWidth />
             </Box>
             <Box>
               <TextField name="data_inizio" label="Data Inizio" type="date" value={form.data_inizio} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
             </Box>
             <Box>
-              <TextField name="data_fine" label="Data Fine" type="date" value={form.data_fine} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
+              <TextField name="data_fine_prevista" label="Data Fine prevista" type="date" value={form.data_fine_prevista} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
             </Box>
             <Box sx={{ gridColumn: '1 / -1' }}>
               <TextField name="descrizione" label="Descrizione" value={form.descrizione} onChange={handleChange} fullWidth multiline minRows={3} />
+            </Box>
+            <Box>
+              <TextField name="cig" label="CIG" value={form.cig || ''} onChange={handleChange} fullWidth />
+            </Box>
+            <Box>
+              <TextField name="cup" label="CUP" value={form.cup || ''} onChange={handleChange} fullWidth />
             </Box>
             <Box>
               <TextField name="imponibile_commessa" label="Imponibile" type="number" value={form.imponibile_commessa} onChange={handleChange} fullWidth />
@@ -163,17 +187,23 @@ export default function NuovaCommessaPage() {
                         // 1) presign
                         const presignRes = await axios.post(
                           `/api/tenants/commesse/${createdCommessaId}/files/presign`,
-                          { filename: f.name, content_type: f.type || 'application/octet-stream' },
+                          { filename: f.name, contentType: f.type || 'application/octet-stream' },
                           { headers }
                         );
-                        const { presignedUrl, file_id, s3_key } = presignRes.data?.data || {};
+                        const { presignedUrl, file_id, s3_key, content_type } = presignRes.data?.data || {};
 
-                        // 2) PUT su S3
-                        await fetch(presignedUrl, {
+                        // 2) PUT su S3 (usa esattamente lo stesso Content-Type del presign)
+                        const putRes = await fetch(presignedUrl, {
                           method: 'PUT',
-                          headers: { 'Content-Type': f.type || 'application/octet-stream' },
+                          headers: { 'Content-Type': content_type || f.type || 'application/octet-stream' },
                           body: f
                         });
+                        if (!putRes.ok) {
+                          const text = await putRes.text().catch(() => '');
+                          console.error('PUT S3 failed', putRes.status, text);
+                          setError(`Upload su S3 fallito (${putRes.status}).`);
+                          continue; // non salvare nel DB se upload fallisce
+                        }
 
                         // 3) checksum + salva metadati
                         const checksum = await computeSha256(f).catch(() => undefined);
@@ -183,7 +213,7 @@ export default function NuovaCommessaPage() {
                             file_id,
                             filename_original: f.name,
                             s3_key,
-                            content_type: f.type || null,
+                            content_type: content_type || f.type || null,
                             size_bytes: f.size,
                             checksum_sha256: checksum || null
                           },
@@ -195,7 +225,7 @@ export default function NuovaCommessaPage() {
                             file_id,
                             filename_original: f.name,
                             s3_key,
-                            content_type: f.type || null,
+                            content_type: content_type || f.type || null,
                             size_bytes: f.size,
                             checksum_sha256: checksum || null
                           },
@@ -208,7 +238,7 @@ export default function NuovaCommessaPage() {
                     } finally {
                       setUploading(false);
                       // reset input per poter ri-caricare gli stessi file
-                      ev.currentTarget.value = '';
+                      try { if (ev?.currentTarget) ev.currentTarget.value = ''; } catch {}
                     }
                   }}
                 />

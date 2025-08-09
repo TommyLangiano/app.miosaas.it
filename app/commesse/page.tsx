@@ -21,15 +21,17 @@ import dayjs from 'dayjs';
 import type { Theme } from '@mui/material/styles';
 import type { ChipProps } from '@mui/material/Chip';
 
-type CommessaRow = {
-  id: string | number;
-  cliente: string;
-  luogo?: string | null;
-  stato?: 'in_corso' | 'chiusa' | string;
-  data_inizio?: string | null;
-  data_fine?: string | null;
-  importo_commessa?: number | string | null;
-};
+  type CommessaRow = {
+    id: string | number;
+    cliente: string;
+    codice?: string | null;
+    nome?: string | null;
+    localita?: string | null;
+    stato?: 'in_corso' | 'chiusa' | string;
+    data_inizio?: string | null;
+    data_fine_prevista?: string | null;
+    importo_commessa?: number | string | null;
+  };
 
 export default function CommessePage() {
   const [rows, setRows] = useState<CommessaRow[]>([]);
@@ -105,7 +107,7 @@ export default function CommessePage() {
                       <Stack direction="row" spacing={0.75} alignItems="center">
                         <LocationOnOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }} noWrap>
-                          {r.luogo || '—'}
+                          {r.localita || '—'}
                         </Typography>
                       </Stack>
                     </Box>
@@ -141,7 +143,7 @@ export default function CommessePage() {
                   <CalendarMonthOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                   <Typography variant="body2">
                     {r.data_inizio ? dayjs(r.data_inizio).format('DD/MM/YYYY') : '—'}
-                    {r.data_fine ? ` → ${dayjs(r.data_fine).format('DD/MM/YYYY')}` : ''}
+                    {r.data_fine_prevista ? ` → ${dayjs(r.data_fine_prevista).format('DD/MM/YYYY')}` : ''}
                   </Typography>
                 </Stack>
                 <Divider sx={{ my: 1.25 }} />
