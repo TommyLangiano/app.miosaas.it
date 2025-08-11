@@ -3,10 +3,8 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "Node version:" && node -v
         - npm ci
-        - node -e "console.log('MUI material version:', require('@mui/material/package.json').version)"
-        - node -e "try { console.log('Has Unstable_Grid2:', !!require.resolve('@mui/material/Unstable_Grid2')) } catch(e) { console.log('Has Unstable_Grid2: false') }"
+        - "npm run print:mui"
     build:
       commands:
         - npm run build
