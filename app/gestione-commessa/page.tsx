@@ -19,7 +19,7 @@ import DialogActions from '@mui/material/DialogActions';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
 import Menu from '@mui/material/Menu';
-import Grid2 from '@mui/material/Grid2';
+import Grid from '@mui/material/Grid';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import axios from '../../src/utils/axios';
@@ -307,29 +307,29 @@ function UscitaForm({ commessaId, onCreated }: UscitaFormProps) {
 
   return (
     <Box>
-      <Grid2 container spacing={2} sx={{ width: '100%', m: 0 }}>
+      <Grid container spacing={2} sx={{ width: '100%', m: 0 }}>
         {/* Prima riga */}
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField label="N. Fattura" InputLabelProps={{ shrink: true }} required fullWidth value={form.numero_fattura} onChange={handleChange('numero_fattura')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
           <TextField label="Fornitore" InputLabelProps={{ shrink: true }} required fullWidth value={form.fornitore} onChange={handleChange('fornitore')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
           <TextField label="Tipologia" InputLabelProps={{ shrink: true }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="date" InputLabelProps={{ shrink: true }} label="Emissione Fattura" required fullWidth value={form.emissione_fattura} onChange={handleChange('emissione_fattura')} />
-        </Grid2>
+        </Grid>
 
         {/* Seconda riga: Data Pagamento spostata su */}
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="date" InputLabelProps={{ shrink: true }} label="Data Pagamento" required fullWidth value={form.data_pagamento} onChange={handleChange('data_pagamento')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="number" label="Importo Totale" InputLabelProps={{ shrink: true }} required fullWidth value={form.importo_totale} onChange={handleChange('importo_totale')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <FormControl fullWidth>
             <InputLabel id="aliquota-iva-label" shrink>Aliquota IVA</InputLabel>
             <Select labelId="aliquota-iva-label" label="Aliquota IVA" value={form.aliquota_iva}
@@ -340,25 +340,25 @@ function UscitaForm({ commessaId, onCreated }: UscitaFormProps) {
               <MenuItem value="22">22%</MenuItem>
             </Select>
           </FormControl>
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="number" label="Imponibile" InputLabelProps={{ shrink: true }} required fullWidth value={form.imponibile} onChange={handleChange('imponibile')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="number" label="IVA" InputLabelProps={{ shrink: true }} required fullWidth value={form.iva} onChange={handleChange('iva')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField label={"Modalità di pagamento"} InputLabelProps={{ shrink: true }} fullWidth value={form.modalita_pagamento} onChange={handleChange('modalita_pagamento')} />
-        </Grid2>
+        </Grid>
 
         {/* Terza riga */}
-        <Grid2 size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <TextField label="Banca di Emissione" InputLabelProps={{ shrink: true }} fullWidth value={form.banca_emissione} onChange={handleChange('banca_emissione')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 3 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 3 }}>
           <TextField label="Numero di Conto" InputLabelProps={{ shrink: true }} fullWidth value={form.numero_conto} onChange={handleChange('numero_conto')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 3 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 3 }}>
           <FormControl fullWidth required>
             <InputLabel id="stato-uscita-label" shrink>Stato uscita</InputLabel>
             <Select labelId="stato-uscita-label" label="Stato uscita" value={form.stato_uscita}
@@ -367,8 +367,8 @@ function UscitaForm({ commessaId, onCreated }: UscitaFormProps) {
               <MenuItem value="Pagato">Pagato</MenuItem>
             </Select>
           </FormControl>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
       <Divider sx={{ my: 2 }} />
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
         <Button variant="contained" onClick={handleSubmit} disabled={saving}>
