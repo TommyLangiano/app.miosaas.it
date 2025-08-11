@@ -3,8 +3,10 @@ frontend:
   phases:
     preBuild:
       commands:
+        - echo "Node version:" && node -v
         - npm ci
-        - node -e "console.log('MUI version:', require('@mui/material/package.json').version)"
+        - node -e "console.log('MUI material version:', require('@mui/material/package.json').version)"
+        - node -e "try { console.log('Has Unstable_Grid2:', !!require.resolve('@mui/material/Unstable_Grid2')) } catch(e) { console.log('Has Unstable_Grid2: false') }"
     build:
       commands:
         - npm run build
@@ -13,4 +15,4 @@ frontend:
     files:
       - '**/*'
   cache:
-    paths: []   # niente cache
+    paths: []
