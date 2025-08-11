@@ -47,7 +47,7 @@ const nextConfig: NextConfig = {
     config.resolve = config.resolve || {};
     config.resolve.alias = config.resolve.alias || {};
 
-    let grid2Target = "@mui/material/Grid2" as const;
+    let grid2Target: string = "@mui/material/Grid2";
     try {
       req.resolve("@mui/material/Grid2");
       grid2Target = "@mui/material/Grid2";
