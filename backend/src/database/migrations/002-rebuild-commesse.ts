@@ -76,6 +76,16 @@ export class Migration002RebuildCommesse {
           PRIMARY KEY (company_id, commessa_id, file_id),
           FOREIGN KEY (commessa_id) REFERENCES commesse(id) ON DELETE CASCADE
         );
+        -- Allinea schema legacy: aggiungi created_at se mancasse
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'commessa_files' AND column_name = 'created_at'
+          ) THEN
+            ALTER TABLE commessa_files ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+          END IF;
+        END $$;
         CREATE INDEX IF NOT EXISTS idx_commessa_files_commessa ON commessa_files(company_id, commessa_id, created_at DESC);
       `);
 

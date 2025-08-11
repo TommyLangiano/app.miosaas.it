@@ -9,6 +9,7 @@
     "dev": "nodemon src/server.ts",
     "prod": "npm run build && npm start",
     "migrate": "ts-node src/database/migrations/migrate.ts",
+    "migrate:uscite": "ts-node src/database/migrations/uscite-setup.ts",
     "migrate:up": "npm run migrate up",
     "migrate:down": "npm run migrate down",
     "migrate:status": "npm run migrate status",

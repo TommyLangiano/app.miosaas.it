@@ -240,7 +240,7 @@ export default function Breadcrumbs({
                 <Typography component={Link} href="/dashboard" color="textSecondary" variant="h6" sx={linkSX}>
                   {icons && <HomeTwoToneIcon style={iconSX} />}
                   {icon && !icons && <HomeIcon style={{ ...iconSX, marginRight: 0 }} />}
-                  {(!icon || icons) && <FormattedMessage id="Dashboard" />}
+                  {(!icon || icons) && customLocation !== '/dashboard' && <FormattedMessage id="Dashboard" />}
                 </Typography>
                 {mainContent}
               </MuiBreadcrumbs>

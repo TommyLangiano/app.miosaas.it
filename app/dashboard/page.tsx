@@ -1,6 +1,4 @@
-import DefaultDashboard from '../../src/views/dashboard/Default';
-
 export default function DashboardPage() {
-
-  return <DefaultDashboard />;
+  // Lasciamo solo il breadcrumb del layout globale
+  return null;
 }

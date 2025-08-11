@@ -1,6 +1,6 @@
 'use client';
-import PropTypes from 'prop-types';
 
+import PropTypes from 'prop-types';
 import { useEffect, useMemo } from 'react';
 
 // material-ui
@@ -18,7 +18,6 @@ import Sidebar from './Sidebar';
 import HorizontalBar from './HorizontalBar';
 import MainContentStyled from './MainContentStyled';
 import Customization from '../Customization';
-import Loader from '../../ui-component/Loader';
 import Breadcrumbs from '../../ui-component/extended/Breadcrumbs';
 
 import { MenuOrientation } from '../../config';
@@ -31,20 +30,14 @@ export default function MainLayout({ children, showBreadcrumbs = true }) {
   const theme = useTheme();
   const downMD = useMediaQuery(theme.breakpoints.down('md'));
 
-  const { borderRadius, container, miniDrawer, menuOrientation } = useConfig();
+  const { borderRadius, container, menuOrientation } = useConfig();
   const { menuMaster, menuMasterLoading } = useGetMenuMaster();
-  const drawerOpen = menuMaster?.isDashboardDrawerOpened;
+  const drawerOpen = !!menuMaster?.isDashboardDrawerOpened;
 
-  // Rimuoviamo l'auto-toggle del drawer: apri/chiudi solo su interazione esplicita
-
-  // Chiudi il drawer su mobile per evitare overlay che intercettano i click
+  // Imposta stato coerente al breakpoint: desktop aperto, mobile chiuso
   useEffect(() => {
-    if (downMD && drawerOpen) handlerDrawerOpen(false);
+    handlerDrawerOpen(!downMD);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [downMD]);
-
-  useEffect(() => {
-    if (downMD) handlerDrawerOpen(false);
   }, [downMD]);
 
   const isHorizontal = menuOrientation === MenuOrientation.HORIZONTAL && !downMD;
@@ -62,7 +55,6 @@ export default function MainLayout({ children, showBreadcrumbs = true }) {
           <Header />
         </Toolbar>
       </AppBar>
-      {/* nessuno spacer: offset gestito da MainContentStyled con paddingTop */}
 
       {/* menu / drawer */}
       {menu}
@@ -73,7 +65,6 @@ export default function MainLayout({ children, showBreadcrumbs = true }) {
           maxWidth={container ? 'lg' : false}
           sx={{ ...(!container && { px: { xs: 0 } }), minHeight: 'calc(100vh - 128px)', display: 'flex', flexDirection: 'column' }}
         >
-          {/* breadcrumb */}
           {showBreadcrumbs && <Breadcrumbs sx={{ mt: 2.5 }} />}
           {children}
           <Footer />
@@ -85,3 +76,5 @@ export default function MainLayout({ children, showBreadcrumbs = true }) {
 }
 
 MainLayout.propTypes = { children: PropTypes.node, showBreadcrumbs: PropTypes.bool };
+
+

@@ -10,6 +10,9 @@ import Migration006ExtendCommesseIndirizzoCommittente from './006-extend-commess
 import Migration007ExtendCommesseProvincia from './007-extend-commesse-provincia';
 import Migration008CommesseProvinciaNotNullCheck from './008-commesse-provincia-not-null-check';
 import Migration009NormalizeCommesseCliente from './009-normalize-commesse-cliente';
+import Migration010CreateUscite from './010-create-uscite';
+import Migration011UsciteCommessaToUuid from './011-uscite-commessa-to-uuid';
+import Migration012AddStatoUscita from './012-add-stato-uscita';
 
 /**
  * Sistema di migrazioni per MioSaaS
@@ -24,7 +27,10 @@ class MigrationRunner {
     Migration006ExtendCommesseIndirizzoCommittente,
     Migration007ExtendCommesseProvincia,
     Migration008CommesseProvinciaNotNullCheck,
-    Migration009NormalizeCommesseCliente
+    Migration009NormalizeCommesseCliente,
+    Migration010CreateUscite,
+    Migration011UsciteCommessaToUuid,
+    Migration012AddStatoUscita
   ];
 
   /**

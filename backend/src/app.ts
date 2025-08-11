@@ -10,6 +10,7 @@ import authRoutes from './routes/auth';
 import registerRoutes from './routes/register';
 import documentsRoutes from './routes/tenants/documents';
 import commesseRoutes from './routes/tenants/commesse';
+import usciteRoutes from './routes/tenants/uscite';
 import testAuthRoutes from './routes/test-auth';
 import userManagementRoutes from './routes/user-management';
 import syncCognitoRoutes from './routes/sync-cognito';
@@ -168,6 +169,7 @@ class App {
     // Tenant-specific routes (protected)
     this.app.use('/api/tenants/documents', documentsRoutes);
     this.app.use('/api/tenants/commesse', commesseRoutes);
+    this.app.use('/api/tenants/uscite', usciteRoutes);
     
     // 🧪 Test authentication routes (JWT ↔ DB testing)
     this.app.use('/api/test-auth', testAuthRoutes);

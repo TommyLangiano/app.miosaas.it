@@ -2,7 +2,12 @@ import useSWR, { SWRConfiguration, mutate } from 'swr';
 import axios from './axios';
 
 export const swrFetcher = async (url: string) => {
-  const res = await axios.get(url);
+  let headers: Record<string, string> = {};
+  try {
+    const companyId = typeof window !== 'undefined' ? localStorage.getItem('company_id') : null;
+    if (companyId) headers['X-Company-ID'] = companyId;
+  } catch {}
+  const res = await axios.get(url, { headers });
   return res.data?.data ?? res.data;
 };
 

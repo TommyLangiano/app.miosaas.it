@@ -6,19 +6,24 @@ import { create } from 'zustand';
 
 const useMenuStore = create((set, get) => ({
   menuMaster: {
-    // Chiuso di default per evitare overlay su mobile al primo render
-    isDashboardDrawerOpened: false,
+    // Persistenza stato drawer in localStorage per evitare chiusure inattese
+    isDashboardDrawerOpened: typeof window !== 'undefined' ? (localStorage.getItem('drawer_open') === '1') : false,
     openedItem: ''
   },
   menuMasterLoading: false,
   
   // Actions
-  setMenuOpen: (isOpen) => set((state) => ({
-    menuMaster: {
-      ...state.menuMaster,
-      isDashboardDrawerOpened: isOpen
-    }
-  })),
+  setMenuOpen: (isOpen) => set((state) => {
+    try {
+      if (typeof window !== 'undefined') localStorage.setItem('drawer_open', isOpen ? '1' : '0');
+    } catch {}
+    return {
+      menuMaster: {
+        ...state.menuMaster,
+        isDashboardDrawerOpened: isOpen
+      }
+    };
+  }),
   setActiveItem: (itemId) => set((state) => ({
     menuMaster: {
       ...state.menuMaster,
@@ -30,6 +35,15 @@ const useMenuStore = create((set, get) => ({
     menuMasterLoading: loading
   }))
 }));
+
+// Imposta default coerente a viewport se non esiste preferenza salvata
+if (typeof window !== 'undefined' && localStorage.getItem('drawer_open') == null) {
+  const prefersMobile = window.matchMedia('(max-width: 960px)').matches; // md breakpoint ~ 960
+  try {
+    localStorage.setItem('drawer_open', prefersMobile ? '0' : '1');
+  } catch {}
+  useMenuStore.getState().setMenuOpen(!prefersMobile);
+}
 
 // Hook per ottenere i dati del menu
 export const useGetMenuMaster = () => {
