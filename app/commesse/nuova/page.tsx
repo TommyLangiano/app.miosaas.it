@@ -3,6 +3,7 @@ import React, { useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import axios from '../../../src/utils/axios';
+import type { AxiosError } from 'axios';
 import MainCard from '../../../src/ui-component/cards/MainCard';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
@@ -16,13 +17,13 @@ import Alert from '@mui/material/Alert';
 export default function NuovaCommessaPage() {
   const router = useRouter();
   const [form, setForm] = useState({
-    cliente: '',
     cliente_tipo: 'privato',
     tipologia_commessa: 'appalto',
     codice: '',
     committente_commessa: '',
     nome: '',
     citta: '',
+    provincia: '',
     via: '',
     civico: '',
     data_inizio: '',
@@ -35,12 +36,18 @@ export default function NuovaCommessaPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  // Rimosso feedback inline provincia per evitare UI invasiva
   // Stato file rimosso
 
   // breadcrumb gestito dal layout globale
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    if (name === 'provincia') {
+      const up = value.toUpperCase().slice(0, 2);
+      setForm((prev) => ({ ...prev, [name]: up }));
+      return;
+    }
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -51,7 +58,14 @@ export default function NuovaCommessaPage() {
     setSaving(true);
     setError(null);
     setSuccess(null);
+    // Validazione soft lato client: evita blocchi UI, demanda al server il controllo definitivo
     try {
+      // Validazione hard lato client per adeguamento API
+      if (!form.committente_commessa || form.committente_commessa.trim() === '') {
+        setError("Il campo 'Committente Commessa' è obbligatorio.");
+        setSaving(false);
+        return;
+      }
       // Validazione CIG/CUP per clienti pubblici
       if (form.cliente_tipo === 'pubblico') {
         const cigOk = (form.cig || '').trim() !== '';
@@ -68,7 +82,6 @@ export default function NuovaCommessaPage() {
       if (companyId) headers['X-Company-ID'] = companyId;
 
       const body = {
-        cliente: form.cliente,
         cliente_tipo: form.cliente_tipo,
         tipologia_commessa: form.tipologia_commessa,
         codice: form.codice,
@@ -76,6 +89,7 @@ export default function NuovaCommessaPage() {
         nome: form.nome,
         descrizione: form.descrizione || null,
         citta: form.citta,
+        provincia: form.provincia || null,
         via: form.via || null,
         civico: form.civico || null,
         data_inizio: form.data_inizio || null,
@@ -89,8 +103,10 @@ export default function NuovaCommessaPage() {
       router.replace('/commesse?created=1');
       return;
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Errore nella creazione';
-      setError(message);
+      let msg = 'Errore nella creazione';
+      const ax = e as AxiosError<{ message?: string }>;
+      msg = ax?.response?.data?.message || (e instanceof Error ? e.message : msg);
+      setError(msg);
     } finally {
       setSaving(false);
     }
@@ -102,7 +118,7 @@ export default function NuovaCommessaPage() {
         const MC = MainCard as unknown as ComponentType<Record<string, unknown>>;
         return (
           <MC title="Crea nuova commessa">
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit} noValidate autoComplete="off">
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' } }}>
             {/* Campo Cliente rimosso: non richiesto nel form. Il backend usa cliente_tipo come fallback per NOT NULL. */}
             <Box sx={{ gridColumn: '1 / -1' }}>
@@ -140,11 +156,21 @@ export default function NuovaCommessaPage() {
             </Box>
             {/* Nome Commessa a tutta riga sotto Tipologia */}
             <Box sx={{ gridColumn: '1 / -1' }}>
-              <TextField name="nome" label="Nome Commessa" value={form.nome} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
+              <TextField
+                name="nome"
+                label="Nome Commessa"
+                value={form.nome}
+                onChange={handleChange}
+                fullWidth
+                required
+                autoComplete="off"
+                inputProps={{ 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-np-ignore': 'true' }}
+                InputLabelProps={{ shrink: true }}
+              />
             </Box>
             {/* Committente e Codice affiancati */}
             <Box>
-              <TextField name="committente_commessa" label="Committente Commessa" value={form.committente_commessa} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
+              <TextField name="committente_commessa" label="Committente Commessa" value={form.committente_commessa} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
             </Box>
             <Box>
               <TextField name="codice" label="Codice Commessa" value={form.codice} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
@@ -180,17 +206,38 @@ export default function NuovaCommessaPage() {
                 </Box>
               </>
             )}
-            {/* Città, Via e N. Civico sulla stessa riga (civico stretto) */}
+            {/* Città, Provincia (2 lettere), Via e N. Civico sulla stessa riga (provincia molto stretta) */}
             <Box
               sx={{
                 gridColumn: '1 / -1',
                 display: 'grid',
                 gap: 2,
                 alignItems: 'start',
-                gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 0.5fr' }
+                gridTemplateColumns: { xs: '1fr', md: '1fr auto 1fr 0.5fr' }
               }}
             >
-              <TextField name="citta" label="Città" value={form.citta} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
+              <TextField
+                name="citta"
+                label="Città"
+                value={form.citta}
+                onChange={handleChange}
+                fullWidth
+                required
+                autoComplete="off"
+                inputProps={{ 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-np-ignore': 'true' }}
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                name="provincia"
+                label="Prov."
+                value={form.provincia}
+                onChange={handleChange}
+                autoComplete="off"
+                inputProps={{ maxLength: 2, 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-np-ignore': 'true' }}
+                sx={{ width: { xs: '100%', md: '7ch' } }}
+                required
+                InputLabelProps={{ shrink: true }}
+              />
               <TextField name="via" label="Via" value={form.via} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
               <TextField name="civico" label="N. Civico" value={form.civico} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
             </Box>

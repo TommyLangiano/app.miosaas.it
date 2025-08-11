@@ -12,6 +12,8 @@ import ProviderWrapper from "../src/store/ProviderWrapper";
 
 // Amplify Provider
 import AmplifyProvider from "../src/providers/AmplifyProvider";
+import { SWRConfig } from 'swr';
+import { defaultSWRConfig } from '../src/utils/swr';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,12 +42,23 @@ export default function RootLayout({
     if (metaDescription) {
       metaDescription.setAttribute('content', 'MioSaaS Application - Accedi alla tua dashboard aziendale');
     }
+    // Assicura meta viewport per mobile
+    const existingViewport = document.querySelector('meta[name="viewport"]');
+    if (!existingViewport) {
+      const vp = document.createElement('meta');
+      vp.setAttribute('name', 'viewport');
+      vp.setAttribute('content', 'width=device-width, initial-scale=1, viewport-fit=cover');
+      document.head.appendChild(vp);
+    }
   }, []);
 
   // 🔧 Evita rendering durante SSR per evitare hydration mismatch
   if (!isClient) {
     return (
       <html lang="it">
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        </head>
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
           <div style={{ 
             display: 'flex', 
@@ -64,12 +77,17 @@ export default function RootLayout({
 
   return (
     <html lang="it">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AmplifyProvider>
           <ProviderWrapper>
-            {children}
+            <SWRConfig value={defaultSWRConfig}>
+              {children}
+            </SWRConfig>
           </ProviderWrapper>
         </AmplifyProvider>
       </body>

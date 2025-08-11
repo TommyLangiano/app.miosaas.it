@@ -1,5 +1,5 @@
 // assets
-import { IconBriefcase, IconReport } from '@tabler/icons-react';
+import { IconBriefcase, IconReport, IconClipboardList } from '@tabler/icons-react';
 
 // ==============================|| MENU GROUP - GESTIONE OPERATIVA ||============================== //
 
@@ -8,6 +8,14 @@ const gestioneOperativa = {
   title: 'Gestione Operativa',
   type: 'group',
   children: [
+    // Rapportini sopra Commesse
+    {
+      id: 'rapportini',
+      title: 'Rapportini',
+      type: 'item',
+      url: '/rapportini',
+      icon: IconReport
+    },
     {
       id: 'commesse',
       title: 'Commesse',
@@ -15,12 +23,13 @@ const gestioneOperativa = {
       url: '/commesse',
       icon: IconBriefcase
     },
+    // Nuova voce sotto Commesse
     {
-      id: 'rapportini',
-      title: 'Rapportini',
+      id: 'gestione-commessa',
+      title: 'Gestione Commessa',
       type: 'item',
-      url: '/rapportini',
-      icon: IconReport
+      url: '/gestione-commessa',
+      icon: IconClipboardList
     }
   ]
 };

@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   distDir: '.next',
   // Configurazione per le immagini
   images: {
-    unoptimized: true,
+    unoptimized: false,
   },
   // Configurazione per il routing
   trailingSlash: false,

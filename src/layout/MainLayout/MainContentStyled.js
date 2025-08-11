@@ -50,9 +50,7 @@ const MainContentStyled = styled('main', {
     padding: 16,
     marginTop: 0,
     paddingTop: 88,
-    ...(!open && {
-      width: `calc(100% - ${drawerWidth}px)`
-    })
+    // Su mobile il drawer è temporaneo: la larghezza deve restare sempre 100%
   },
   [theme.breakpoints.down('sm')]: {
     marginLeft: 0,

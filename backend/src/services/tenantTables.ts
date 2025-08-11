@@ -155,6 +155,7 @@ function createCommesseTableSQL(tableName: string): string {
       codice VARCHAR(50),
       nome VARCHAR(255),
       citta VARCHAR(255),
+      provincia VARCHAR(2) NOT NULL,
       via VARCHAR(255),
       civico VARCHAR(20),
       data_inizio DATE,
@@ -179,6 +180,7 @@ function createCommesseTableSQL(tableName: string): string {
     CREATE INDEX IF NOT EXISTS idx_${tableName}_codice ON ${tableName}(codice);
     CREATE INDEX IF NOT EXISTS idx_${tableName}_nome ON ${tableName}(nome);
     CREATE INDEX IF NOT EXISTS idx_${tableName}_citta ON ${tableName}(citta);
+    CREATE INDEX IF NOT EXISTS idx_${tableName}_provincia ON ${tableName}(provincia);
     CREATE INDEX IF NOT EXISTS idx_${tableName}_stato ON ${tableName}(stato);
     CREATE INDEX IF NOT EXISTS idx_${tableName}_created_at ON ${tableName}(created_at);
     CREATE INDEX IF NOT EXISTS idx_${tableName}_created_by ON ${tableName}(created_by);

@@ -28,7 +28,8 @@ function buildSelectList(existing: Set<string>): string {
   const want: Array<{ name: string; fallback: string }> = [
     { name: 'id', fallback: 'NULL::uuid AS id' },
     { name: 'company_id', fallback: 'NULL::uuid AS company_id' },
-    { name: 'cliente', fallback: "NULL::text AS cliente" },
+    // Normalizzato: non esponiamo più `cliente`, usiamo solo `committente_commessa`
+    { name: 'committente_commessa', fallback: "NULL::text AS committente_commessa" },
     { name: 'cliente_tipo', fallback: "NULL::text AS cliente_tipo" },
     { name: 'tipologia_commessa', fallback: "NULL::text AS tipologia_commessa" },
     { name: 'codice', fallback: "NULL::text AS codice" },
@@ -36,9 +37,9 @@ function buildSelectList(existing: Set<string>): string {
     { name: 'descrizione', fallback: "NULL::text AS descrizione" },
     // Compat: se non c'è citta, tenta localita
     { name: 'citta', fallback: existing.has('localita') ? 'localita AS citta' : "NULL::text AS citta" },
+    { name: 'provincia', fallback: "NULL::text AS provincia" },
     { name: 'via', fallback: "NULL::text AS via" },
     { name: 'civico', fallback: "NULL::text AS civico" },
-    { name: 'committente_commessa', fallback: "NULL::text AS committente_commessa" },
     { name: 'data_inizio', fallback: 'NULL::date AS data_inizio' },
     { name: 'data_fine_prevista', fallback: 'NULL::date AS data_fine_prevista' },
     { name: 'cig', fallback: "NULL::text AS cig" },
@@ -79,6 +80,11 @@ router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> 
     const companyId = req.tenant!.companyId;
 
     const body = (req.body || {}) as Record<string, unknown>;
+    // Rifiuta immediatamente payload legacy che usano `cliente`
+    if (Object.prototype.hasOwnProperty.call(body, 'cliente')) {
+      res.status(400).json({ status: 'error', message: "Campo deprecato 'cliente'. Usa 'committente_commessa'." });
+      return;
+    }
     // Niente proxy/upload: creazione semplice
     const emptyToNull = (v: unknown): unknown => {
       if (v === undefined || v === null) return null;
@@ -89,24 +95,35 @@ router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> 
     // Il campo cliente non è più obbligatorio: se assente useremo eventuale fallback o NULL
 
     // Prepara valori con fallback robusti (stringhe vuote considerate assenti)
-    const rawCliente = typeof body['cliente'] === 'string' ? (body['cliente'] as string).trim() : '';
+    const rawCommittente = typeof body['committente_commessa'] === 'string' ? (body['committente_commessa'] as string).trim() : '';
     const clienteTipoValue = String((body['cliente_tipo'] ?? body['clienteTipo'] ?? 'privato') as string);
     const tipologiaCommessaValue = String((body['tipologia_commessa'] ?? body['tipologiaCommessa'] ?? 'appalto') as string);
 
     // Costruiamo i valori da inserire
+    const normalizeProvincia = (v: unknown): string | null => {
+      if (typeof v !== 'string') return null;
+      const up = v.trim().toUpperCase().slice(0, 2);
+      return up.length === 2 ? up : null;
+    };
+
+    // Validazione hard: committente_commessa obbligatorio
+    if (rawCommittente === '') {
+      res.status(400).json({ status: 'error', message: "'committente_commessa' è obbligatorio" });
+      return;
+    }
+
     const fullDataMap: Record<string, unknown> = {
-      // Se cliente è vuoto, usa cliente_tipo per rispettare il NOT NULL a schema
-      cliente: rawCliente !== '' ? rawCliente : clienteTipoValue,
-      cliente_tipo: emptyToNull(body['cliente_tipo'] ?? body['clienteTipo'] ?? 'privato'),
+      cliente_tipo: emptyToNull(clienteTipoValue),
       tipologia_commessa: emptyToNull(tipologiaCommessaValue),
       codice: emptyToNull(body['codice']),
       nome: emptyToNull(body['nome']),
       descrizione: emptyToNull(body['descrizione']),
+      committente_commessa: emptyToNull(rawCommittente),
       // Inserisci su citta se esiste, altrimenti fallback su localita
       citta: emptyToNull(body['citta'] ?? body['localita'] ?? body['luogo']),
+      provincia: normalizeProvincia(body['provincia'] ?? body['pr']),
       via: emptyToNull(body['via']),
       civico: emptyToNull(body['civico']),
-      committente_commessa: emptyToNull(body['committente_commessa']),
       data_inizio: emptyToNull(body['data_inizio']),
       data_fine_prevista: emptyToNull(body['data_fine_prevista'] ?? body['data_fine']),
       cig: emptyToNull(body['cig']),
@@ -134,6 +151,14 @@ router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> 
         return;
       }
     }
+    // Validazione provincia obbligatoria solo se la colonna esiste nello schema
+    if (existing.has('provincia')) {
+      if (!dataMap.provincia || typeof dataMap.provincia !== 'string' || !(dataMap.provincia as string).match(/^[A-Z]{2}$/)) {
+        res.status(400).json({ status: 'error', message: 'Provincia obbligatoria (2 lettere, es. MI)' });
+        return;
+      }
+    }
+
     // Iniziamo transazione per inserimento commessa
     await req.db!.query('BEGIN');
     const insertKeys = Object.keys(dataMap);
@@ -197,10 +222,10 @@ router.put('/:id', async (req: AuthedTenantRequest, res: Response): Promise<void
 
     const existing = await getExistingColumns(req.db);
     const fieldsBase = [
-      'cliente','codice','nome','descrizione','citta','via','civico','committente_commessa',
-      'data_inizio','data_fine_prevista','cig','cup','importo_commessa'
-    ];
-    const fields = fieldsBase.filter((f) => existing.has(f));
+      'codice','nome','descrizione','citta','provincia','via','civico','committente_commessa',
+      'data_inizio','data_fine_prevista','cig','cup','importo_commessa','cliente_tipo','tipologia_commessa'
+    ].filter((f) => existing.has(f));
+    const fields = fieldsBase;
     const updates: string[] = [];
     const params: unknown[] = [];
     let idx = 1;
@@ -237,13 +262,13 @@ router.put('/:id', async (req: AuthedTenantRequest, res: Response): Promise<void
   }
 });
 
-// DELETE /api/tenants/commesse/:id → soft delete (archivia)
+// DELETE /api/tenants/commesse/:id → eliminazione definitiva
 router.delete('/:id', async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {
     const id = req.params.id;
     const companyId = req.tenant!.companyId;
     const result = await req.db!.query(
-      `UPDATE commesse SET archiviata = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND company_id = $2 RETURNING id`,
+      `DELETE FROM commesse WHERE id = $1 AND company_id = $2 RETURNING id`,
       [id, companyId]
     );
     if ((result.rowCount || 0) === 0) {

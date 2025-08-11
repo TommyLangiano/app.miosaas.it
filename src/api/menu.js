@@ -6,7 +6,8 @@ import { create } from 'zustand';
 
 const useMenuStore = create((set, get) => ({
   menuMaster: {
-    isDashboardDrawerOpened: true,
+    // Chiuso di default per evitare overlay su mobile al primo render
+    isDashboardDrawerOpened: false,
     openedItem: ''
   },
   menuMasterLoading: false,

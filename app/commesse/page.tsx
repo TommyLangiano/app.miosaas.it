@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import axios from '../../src/utils/axios';
+import { useSWR, defaultSWRConfig } from '../../src/utils/swr';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -20,6 +20,7 @@ import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
     codice?: string | null;
     nome?: string | null;
     citta?: string | null;
+    provincia?: string | null;
     via?: string | null;
     civico?: string | null;
     committente_commessa?: string | null;
@@ -33,29 +34,39 @@ export default function CommessePage() {
   const [rows, setRows] = useState<CommessaRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   // layout semplificato: niente MainCard, solo righe full-width
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  useEffect(() => {
-    const companyId = localStorage.getItem('company_id');
-    const headers: Record<string, string> = {};
-    if (companyId) headers['X-Company-ID'] = companyId;
-    axios
-      .get('/api/tenants/commesse', { headers })
-      .then((res) => setRows(res.data?.data || []))
-      .catch((e) => setError(typeof e === 'string' ? e : e?.message || 'Errore'))
-      .finally(() => setLoading(false));
-  }, []);
+  const swrKey = '/api/tenants/commesse';
+  const { data: swrRows, error: swrError, isLoading: swrLoading } = useSWR(swrKey, defaultSWRConfig);
 
-  // Mostra messaggio di creazione e pulisci l'URL
+  useEffect(() => {
+    setLoading(swrLoading);
+    if (swrError) setError(swrError as unknown as string);
+    if (Array.isArray(swrRows)) setRows(swrRows as unknown as CommessaRow[]);
+  }, [swrRows, swrError, swrLoading]);
+
+  // Mostra messaggi e pulisci l'URL
   const [createdJustNow, setCreatedJustNow] = useState<boolean>(false);
   useEffect(() => {
-    if (searchParams.get('created') === '1') {
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    if (params.get('created') === '1') {
       setCreatedJustNow(true);
-      const newParams = new URLSearchParams(Array.from(searchParams.entries()));
-      newParams.delete('created');
-      router.replace(`/commesse${newParams.toString() ? `?${newParams.toString()}` : ''}`);
+      params.delete('created');
+    }
+    if (params.get('deleted') === '1') {
+      setMessage('Commessa eliminata definitivamente.');
+      params.delete('deleted');
+    }
+    if (params.get('error') === '1') {
+      setError(params.get('msg') || 'Operazione non riuscita');
+      params.delete('error');
+      params.delete('msg');
+    }
+    if (params.toString() !== searchParams.toString()) {
+      router.replace(`/commesse${params.toString() ? `?${params.toString()}` : ''}`);
     }
   }, [searchParams, router]);
 
@@ -69,76 +80,98 @@ export default function CommessePage() {
         </Button>
       </Stack>
 
-      {createdJustNow && (
+      {(createdJustNow || message) && (
         <Box sx={{ mb: 2 }}>
-          <Alert severity="success">Commessa creata con successo.</Alert>
+          {createdJustNow && <Alert severity="success">Commessa creata con successo.</Alert>}
+          {message && <Alert severity="success">{message}</Alert>}
         </Box>
       )}
       {loading ? (
-        <Stack spacing={1}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5 }}>
           {Array.from({ length: 6 }).map((_, i) => (
             <Box
               key={i}
               sx={{
                 width: '100%',
                 display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 1,
                 px: 2.5,
                 py: 1.5,
                 borderRadius: 1,
-                bgcolor: 'background.paper'
+                bgcolor: 'background.paper',
+                minHeight: 110
               }}
             >
-              <Skeleton variant="circular" width={40} height={40} />
-              <Skeleton width="60%" height={24} />
+              <Skeleton variant="circular" width={32} height={32} />
+              <Skeleton width="75%" height={20} />
+              <Skeleton width="50%" height={18} />
             </Box>
           ))}
-        </Stack>
+        </Box>
       ) : error ? (
         <Typography color="error">{error}</Typography>
       ) : (
-        <Stack spacing={1}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5 }}>
           {rows.map((r) => {
             const codice = r.codice || '—';
             const nome = r.nome || '—';
-            const citta = r.citta || '—';
+            const citta = r.citta || '';
+            const provincia = r.provincia || '';
+            const via = r.via || '';
+            const civico = r.civico || '';
+            const indirizzo = [via, civico].filter(Boolean).join(' ').trim();
+            const cityProvince = [citta, provincia].filter(Boolean).join(' ');
+            const locationText = indirizzo && cityProvince ? `${indirizzo}, ${cityProvince}` : indirizzo || cityProvince || '—';
             return (
-              <Box
+            <Box
                 key={r.id}
                 sx={{
                   width: '100%',
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.5,
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 1,
                   px: 2.5,
                   py: 1.5,
                   borderRadius: 1,
                   bgcolor: 'background.paper',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  minHeight: 110,
                   ':hover': { bgcolor: 'action.hover' }
                 }}
                 component={Link}
                 href={`/commesse/${r.id}`}
               >
-                <Box sx={{ color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <IconBriefcase size={22} color="currentColor" />
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <IconBriefcase size={22} color="currentColor" />
+                  </Box>
                   <Typography
                     variant="h6"
-                    sx={{ fontSize: '1.2rem', fontWeight: 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                    sx={{
+                      fontSize: { xs: '1.2rem', sm: '1.35rem', md: '1.5rem' },
+                      fontWeight: 400,
+                      lineHeight: 1.2
+                    }}
                   >
                     <Box component="span" sx={{ fontWeight: 700 }}>{codice}</Box>
                     {' - '}
                     <Box component="span" sx={{ fontWeight: 700 }}>{nome}</Box>
                   </Typography>
-                  <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-                    <LocationOnOutlinedIcon fontSize="small" sx={{ color: 'secondary.main' }} />
-                    <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }} noWrap>
-                      {citta}
-                    </Typography>
-                  </Stack>
                 </Box>
+                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ width: '100%' }}>
+                  <LocationOnOutlinedIcon sx={{ color: 'primary.main', fontSize: { xs: 20, sm: 22 } }} />
+                  <Typography
+                    variant="body1"
+                    color="text.secondary"
+                    sx={{ fontWeight: 400, fontSize: { xs: '0.95rem', sm: '1.05rem' } }}
+                  >
+                    {locationText}
+                  </Typography>
+                </Stack>
               </Box>
             );
           })}
@@ -147,7 +180,7 @@ export default function CommessePage() {
               <Typography>Nessuna commessa trovata.</Typography>
             </Box>
           )}
-        </Stack>
+        </Box>
       )}
     </>
   );

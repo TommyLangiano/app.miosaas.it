@@ -25,7 +25,8 @@ export default function AuthGuard({ children }) {
     }
   }, [loading, isAuthenticated, router]);
 
-  if (loading) return <Loader />;
+  // Evita flicker tra pagine: mostra i children mentre verifichiamo lo stato
+  if (loading) return children;
   if (!isAuthenticated) return null;
 
   return children;

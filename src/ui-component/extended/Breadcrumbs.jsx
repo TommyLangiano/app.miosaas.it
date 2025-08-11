@@ -16,6 +16,7 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import MuiBreadcrumbs from '@mui/material/Breadcrumbs';
 import Box from '@mui/material/Box';
+import axios from '../../utils/axios';
 
 // project imports
 import { ThemeMode, ThemeDirection } from '../../config';
@@ -64,6 +65,10 @@ export default function Breadcrumbs({
   const { themeDirection } = useConfig();
   const [main, setMain] = useState();
   const [item, setItem] = useState();
+  const [overrideHeading, setOverrideHeading] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [detailTitle, setDetailTitle] = useState(null);
+  const [detailId, setDetailId] = useState(null);
 
   const iconSX = {
     marginRight: 6,
@@ -84,6 +89,60 @@ export default function Breadcrumbs({
   const customLocation = pathname;
 
   useEffect(() => {
+    // Reset override by route
+    setOverrideHeading(null);
+
+    // Riconoscimento rotte commesse
+    const matchEdit = /^\/commesse\/([^/]+)\/modifica$/.exec(customLocation || '');
+    const matchDetail = /^\/commesse\/([^/]+)$/.exec(customLocation || '');
+    const matchCreate = /^\/commesse\/nuova$/.exec(customLocation || '');
+    const isEdit = !!matchEdit && matchEdit[1] !== 'nuova';
+    const isDetail = !!matchDetail && matchDetail[1] !== 'nuova';
+    const isCreate = !!matchCreate;
+    if (isEdit || isDetail) {
+      const id = (isEdit ? matchEdit?.[1] : matchDetail?.[1]) || '';
+      setDetailId(id);
+      try {
+        const companyId = typeof window !== 'undefined' ? localStorage.getItem('company_id') : null;
+        const headers = companyId ? { 'X-Company-ID': companyId } : {};
+        axios
+          .get(`/api/tenants/commesse/${id}`, { headers })
+          .then((res) => {
+            const nome = res?.data?.data?.nome;
+            const codice = res?.data?.data?.codice;
+            const titleText = nome || codice || 'Commessa';
+            setDetailTitle(titleText);
+            if (isEdit) {
+              setEditMode(true);
+              setOverrideHeading(`Modifica ${titleText}`);
+            } else {
+              setEditMode(false);
+              setOverrideHeading(titleText);
+            }
+          })
+          .catch(() => {
+            setDetailTitle('Commessa');
+            setOverrideHeading(isEdit ? 'Modifica Commessa' : 'Commessa');
+            setEditMode(isEdit);
+          });
+      } catch {
+        // ignore
+      }
+
+      // Forza struttura breadcrumb anche se non mappata nel menu
+      setMain({ type: 'collapse', title: 'Commesse', url: '/commesse', breadcrumbs: true });
+      setItem({ type: 'item', title: 'Commessa' });
+    }
+
+    // Crea nuova commessa → breadcrumb coerente
+    if (isCreate) {
+      setOverrideHeading('Nuova commessa');
+      setDetailTitle('Nuova commessa');
+      setEditMode(false);
+      setMain({ type: 'collapse', title: 'Commesse', url: '/commesse', breadcrumbs: true });
+      setItem({ type: 'item', title: 'Nuova commessa' });
+    }
+
     navigation?.items?.map((menu) => {
       if (menu.type && menu.type === 'group') {
         if (menu?.url && menu.url === customLocation) {
@@ -95,7 +154,7 @@ export default function Breadcrumbs({
       }
       return false;
     });
-  });
+  }, [customLocation]);
 
   // set active item state
   const getCollapse = (menu) => {
@@ -124,7 +183,12 @@ export default function Breadcrumbs({
 
   let mainContent;
   let itemContent;
-  let breadcrumbContent = <Typography />;
+  // Placeholder stabile per evitare layout shift iniziale
+  let breadcrumbContent = (
+    <Card sx={{ mb: 3, bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'background.default' }}>
+      <Box sx={{ py: 1.25, px: { xs: 2, sm: 3 }, minHeight: 64 }} />
+    </Card>
+  );
   let itemTitle = '';
   let CollapseIcon;
   let ItemIcon;
@@ -135,7 +199,7 @@ export default function Breadcrumbs({
     CollapseIcon = main.icon ? main.icon : AccountTreeTwoToneIcon;
     mainContent = (
       <Typography
-        {...(main.url && { component: Link, to: main.url })}
+        {...(main.url && { component: Link, href: main.url })}
         variant="h6"
         noWrap
         sx={{
@@ -157,7 +221,7 @@ export default function Breadcrumbs({
   if (!custom && main && main.type === 'collapse' && main.breadcrumbs === true) {
     breadcrumbContent = (
       <Card sx={card === false ? { mb: 3, bgcolor: 'transparent', ...sx } : { mb: 3, bgcolor: 'background.default', ...sx }} {...others}>
-        <Box sx={{ p: 1.25, px: card === false ? 0 : 2 }}>
+        <Box sx={{ py: 1.25, px: { xs: 2, sm: 3 }, minHeight: 64 }}>
           <Grid
             container
             direction={rightAlign ? 'row' : 'column'}
@@ -165,7 +229,7 @@ export default function Breadcrumbs({
             alignItems={rightAlign ? 'center' : 'flex-start'}
             spacing={1}
           >
-            {title && !titleBottom && <BTitle title={main.title} />}
+            {title && !titleBottom && <BTitle title={overrideHeading || main.title} isIntlId={!overrideHeading} />}
             <Grid>
               <MuiBreadcrumbs
                 aria-label="breadcrumb"
@@ -194,25 +258,49 @@ export default function Breadcrumbs({
     itemTitle = item?.title;
 
     ItemIcon = item?.icon ? item.icon : AccountTreeTwoToneIcon;
-    itemContent = (
-      <Typography
-        variant="h6"
-        noWrap
-        sx={{
-          ...linkSX,
-          color: 'text.secondary',
-          display: 'inline-block',
-          overflow: 'hidden',
-          lineHeight: 1.5,
-          mb: -0.625,
-          textOverflow: 'ellipsis',
-          maxWidth: { xs: 102, sm: 'unset' }
-        }}
-      >
-        {icons && <ItemIcon style={{ ...iconSX, ...(themeDirection === ThemeDirection.RTL && { marginLeft: 6, marginRight: 0 }) }} />}
-        <FormattedMessage id={itemTitle} />
-      </Typography>
-    );
+    if (editMode && detailTitle && detailId) {
+      itemContent = (
+        <Typography
+          component={Link}
+          href={`/commesse/${detailId}`}
+          variant="h6"
+          noWrap
+          sx={{
+            ...linkSX,
+            color: 'text.secondary',
+            display: 'inline-block',
+            overflow: 'hidden',
+            lineHeight: 1.5,
+            mb: -0.625,
+            textOverflow: 'ellipsis',
+            maxWidth: { xs: 102, sm: 'unset' }
+          }}
+        >
+          {icons && <ItemIcon style={{ ...iconSX, ...(themeDirection === ThemeDirection.RTL && { marginLeft: 6, marginRight: 0 }) }} />}
+          {detailTitle}
+        </Typography>
+      );
+    } else {
+      itemContent = (
+        <Typography
+          variant="h6"
+          noWrap
+          sx={{
+            ...linkSX,
+            color: 'text.secondary',
+            display: 'inline-block',
+            overflow: 'hidden',
+            lineHeight: 1.5,
+            mb: -0.625,
+            textOverflow: 'ellipsis',
+            maxWidth: { xs: 102, sm: 'unset' }
+          }}
+        >
+          {icons && <ItemIcon style={{ ...iconSX, ...(themeDirection === ThemeDirection.RTL && { marginLeft: 6, marginRight: 0 }) }} />}
+          {overrideHeading ? overrideHeading : <FormattedMessage id={itemTitle} />}
+        </Typography>
+      );
+    }
 
     let tempContent = (
       <MuiBreadcrumbs
@@ -230,6 +318,23 @@ export default function Breadcrumbs({
         </Typography>
         {mainContent}
         {itemContent}
+        {editMode && (
+          <Typography
+            variant="h6"
+            noWrap
+            sx={{
+              ...linkSX,
+              color: 'text.secondary',
+              display: 'inline-block',
+              overflow: 'hidden',
+              lineHeight: 1.5,
+              mb: -0.625,
+              textOverflow: 'ellipsis'
+            }}
+          >
+            Modifica
+          </Typography>
+        )}
       </MuiBreadcrumbs>
     );
 
@@ -284,14 +389,20 @@ export default function Breadcrumbs({
             justifyContent={rightAlign ? 'space-between' : 'flex-start'}
             alignItems={rightAlign ? 'center' : 'flex-start'}
             spacing={1}
-            sx={{ p: 1.25, px: card === false ? 0 : 2 }}
+            sx={{ py: 1.25, px: { xs: 2, sm: 3 }, minHeight: 64 }}
           >
             {title && !titleBottom && (
-              <BTitle title={custom ? heading : item?.title} isIntlId={!custom || isTranslatableKey(custom ? heading : item?.title)} />
+              <BTitle
+                title={overrideHeading || (custom ? heading : item?.title)}
+                isIntlId={overrideHeading ? false : !custom || isTranslatableKey(custom ? heading : item?.title)}
+              />
             )}
             <Grid>{tempContent}</Grid>
             {title && titleBottom && (
-              <BTitle title={custom ? heading : item?.title} isIntlId={!custom || isTranslatableKey(custom ? heading : item?.title)} />
+              <BTitle
+                title={overrideHeading || (custom ? heading : item?.title)}
+                isIntlId={overrideHeading ? false : !custom || isTranslatableKey(custom ? heading : item?.title)}
+              />
             )}
           </Grid>
           {card === false && divider !== false && <Divider sx={{ mt: 2 }} />}

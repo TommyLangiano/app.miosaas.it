@@ -24,6 +24,7 @@
     "aws-amplify": "^6.15.4",
     "axios": "^1.11.0",
     "chance": "^1.1.13",
+    "dayjs": "^1.11.13",
     "formik": "^2.4.6",
     "framer-motion": "^12.23.12",
     "jwt-decode": "^4.0.0",
@@ -39,10 +40,9 @@
     "redux-persist": "^6.0.0",
     "sass": "^1.89.2",
     "stylis-plugin-rtl": "^2.1.1",
+    "swr": "^2.3.5",
     "yup": "^1.7.0",
     "zustand": "^5.0.7"
-    ,
-    "dayjs": "^1.11.13"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

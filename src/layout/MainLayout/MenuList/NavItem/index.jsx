@@ -90,6 +90,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
       {!isHorizontal ? (
         <ListItemButton
           component={Link}
+          prefetch
           href={item.url}
           target={itemTarget}
           disabled={item.disabled}
@@ -165,13 +166,13 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
                 primary={
                   <Typography
                     ref={ref}
-                    noWrap
                     variant={isSelected ? 'h5' : 'body1'}
                     color="inherit"
                     sx={{
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      width: 102,
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word',
+                      overflowWrap: 'anywhere',
+                      width: 160,
                       ...(themeDirection === ThemeDirection.RTL && { textAlign: 'end', direction: 'rtl' })
                     }}
                   >
@@ -202,6 +203,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID 
       ) : (
         <ListItemButton
           component={Link}
+          prefetch
           href={item.url}
           target={itemTarget}
           disabled={item.disabled}
