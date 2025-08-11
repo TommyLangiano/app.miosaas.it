@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "export": "next build && next export"
+    "export": "next build && next export",
+    "print:mui": "node -e \"console.log('MUI material version:', require('@mui/material/package.json').version)\" && node -e \"try{console.log('Has Unstable_Grid2:', !!require.resolve('@mui/material/Unstable_Grid2'))}catch(e){console.log('Has Unstable_Grid2:', false)}\""
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
