@@ -5,9 +5,9 @@ applications:
       phases:
         preBuild:
           commands:
-            # Evita che Amplify consideri/analizzi il backend durante la build
-            - rm -rf backend || true
-            - npm ci
+            - nvm install 20
+            - nvm use 20
+            - npm ci --no-audit --no-fund
         build:
           commands:
             - npm run build
@@ -17,5 +17,4 @@ applications:
           - '**/*'
       cache:
         paths:
-          - node_modules/**/*
           - .next/cache/**/*

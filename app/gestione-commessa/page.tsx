@@ -9,6 +9,7 @@ import Skeleton from '@mui/material/Skeleton';
 import Alert from '@mui/material/Alert';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import Divider from '@mui/material/Divider';
@@ -412,6 +413,7 @@ type UscitaRow = {
   modalita_pagamento?: string;
   banca_emissione?: string;
   numero_conto?: string;
+  stato_uscita?: string;
 };
 
 function UsciteTable({ commessaId, version }: { commessaId: string; version: number }) {
@@ -441,6 +443,25 @@ function UsciteTable({ commessaId, version }: { commessaId: string; version: num
       return `${Number(value).toFixed(2)} €`;
     }
   };
+  const renderStatoChip = (stato?: string) => {
+    const isPaid = (stato || '').toLowerCase() === 'pagato';
+    const label = isPaid ? 'Pagato' : 'Non Pagato';
+    return (
+      <Chip
+        label={label}
+        size="small"
+        sx={(theme: Theme) => ({
+          fontWeight: 700,
+          bgcolor: alpha(isPaid ? theme.palette.success.main : theme.palette.error.main, 0.2),
+          color: '#000',
+          borderRadius: '999px',
+          width: 90,
+          justifyContent: 'center',
+          '& .MuiChip-label': { width: '100%', textAlign: 'center', px: 0 }
+        })}
+      />
+    );
+  };
 
   return (
     <Box>
@@ -453,9 +474,10 @@ function UsciteTable({ commessaId, version }: { commessaId: string; version: num
         <TableHead>
           <TableRow>
             <TableCell>N° Fattura</TableCell>
-            <TableCell>Fornitore</TableCell>
+            <TableCell sx={{ width: '30%' }}>Fornitore</TableCell>
             <TableCell align="center">Importo Totale</TableCell>
             <TableCell>Data Pagamento</TableCell>
+            <TableCell align="center" sx={{ width: 100 }}>Stato</TableCell>
             <TableCell align="right">Azioni</TableCell>
           </TableRow>
         </TableHead>
@@ -463,9 +485,10 @@ function UsciteTable({ commessaId, version }: { commessaId: string; version: num
           {rows.map((r, idx) => (
             <TableRow key={idx} hover>
               <TableCell>{r.numero_fattura}</TableCell>
-              <TableCell>{r.fornitore}</TableCell>
+              <TableCell sx={{ width: '30%' }}>{r.fornitore}</TableCell>
               <TableCell align="center">{formatEuro(r.importo_totale)}</TableCell>
               <TableCell>{r.data_pagamento ? String(r.data_pagamento).slice(0, 10) : '—'}</TableCell>
+              <TableCell align="center" sx={{ width: 100 }}>{renderStatoChip(r.stato_uscita)}</TableCell>
               <TableCell align="right">
                 <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                   <Tooltip title="Modifica Uscita" arrow>
@@ -534,7 +557,7 @@ function UsciteTable({ commessaId, version }: { commessaId: string; version: num
           ))}
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5}>
+              <TableCell colSpan={6}>
                 <Alert severity="info">Nessuna uscita presente per questa commessa.</Alert>
               </TableCell>
             </TableRow>
