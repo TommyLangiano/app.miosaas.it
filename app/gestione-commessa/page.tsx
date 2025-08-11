@@ -9,7 +9,6 @@ import Skeleton from '@mui/material/Skeleton';
 import Alert from '@mui/material/Alert';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import Divider from '@mui/material/Divider';
@@ -31,9 +30,7 @@ import TableCell from '@mui/material/TableCell';
 import MainCardDefault from '../../src/ui-component/cards/MainCard';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { alpha } from '@mui/material/styles';
-import Popper from '@mui/material/Popper';
-import type { PopperProps } from '@mui/material/Popper';
-import Grow from '@mui/material/Grow';
+// Popper custom rimosso
 import Fade from '@mui/material/Fade';
 import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
 import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
@@ -96,31 +93,13 @@ export default function GestioneCommessaPage() {
             clearOnBlur={false}
             autoHighlight
             disablePortal
-            PopperComponent={AnimatedPopper as unknown as React.ComponentType<PopperProps>}
           />
         )}
       </Box>
     </Stack>
   );
 
-  type AnimatedPopperProps = Omit<PopperProps, 'children' | 'transition'> & {
-    children: React.ReactNode | ((args: { TransitionProps?: object; placement?: unknown }) => React.ReactNode);
-  };
-
-  function AnimatedPopper(props: AnimatedPopperProps) {
-    const { children, ...rest } = props;
-    return (
-      <Popper {...(rest as PopperProps)} transition placement="bottom-start">
-        {(childProps: { TransitionProps?: object; placement?: unknown }) => (
-          <Grow {...(childProps.TransitionProps || {})} style={{ transformOrigin: 'left top' }}>
-            <div>
-              {typeof children === 'function' ? (children as (a: { TransitionProps?: object; placement?: unknown }) => React.ReactNode)(childProps) : children}
-            </div>
-          </Grow>
-        )}
-      </Popper>
-    );
-  }
+  // Rimosso Popper personalizzato; uso Popper di default con slotProps
 
   return (
     <>
@@ -443,25 +422,6 @@ function UsciteTable({ commessaId, version }: { commessaId: string; version: num
       return `${Number(value).toFixed(2)} €`;
     }
   };
-  const renderStatoChip = (stato?: string) => {
-    const isPaid = (stato || '').toLowerCase() === 'pagato';
-    const label = isPaid ? 'Pagato' : 'Non Pagato';
-    return (
-      <Chip
-        label={label}
-        size="small"
-        sx={(theme: Theme) => ({
-          fontWeight: 700,
-          bgcolor: alpha(isPaid ? theme.palette.success.main : theme.palette.error.main, 0.2),
-          color: '#000',
-          borderRadius: '999px',
-          width: 90,
-          justifyContent: 'center',
-          '& .MuiChip-label': { width: '100%', textAlign: 'center', px: 0 }
-        })}
-      />
-    );
-  };
 
   return (
     <Box>
@@ -474,10 +434,10 @@ function UsciteTable({ commessaId, version }: { commessaId: string; version: num
         <TableHead>
           <TableRow>
             <TableCell>N° Fattura</TableCell>
-            <TableCell sx={{ width: '30%' }}>Fornitore</TableCell>
+            <TableCell sx={{ width: { xs: 'auto', md: '40%' } }}>Fornitore</TableCell>
             <TableCell align="center">Importo Totale</TableCell>
             <TableCell>Data Pagamento</TableCell>
-            <TableCell align="center" sx={{ width: 100 }}>Stato</TableCell>
+            <TableCell align="center" sx={{ width: { xs: 96, md: 120 } }}>Stato</TableCell>
             <TableCell align="right">Azioni</TableCell>
           </TableRow>
         </TableHead>
@@ -485,10 +445,39 @@ function UsciteTable({ commessaId, version }: { commessaId: string; version: num
           {rows.map((r, idx) => (
             <TableRow key={idx} hover>
               <TableCell>{r.numero_fattura}</TableCell>
-              <TableCell sx={{ width: '30%' }}>{r.fornitore}</TableCell>
+              <TableCell sx={{ width: { xs: 'auto', md: '40%' } }}>{r.fornitore}</TableCell>
               <TableCell align="center">{formatEuro(r.importo_totale)}</TableCell>
               <TableCell>{r.data_pagamento ? String(r.data_pagamento).slice(0, 10) : '—'}</TableCell>
-              <TableCell align="center" sx={{ width: 100 }}>{renderStatoChip(r.stato_uscita)}</TableCell>
+              <TableCell align="center" sx={{ width: { xs: 96, md: 120 } }}>
+                {(() => {
+                  const raw = (r as unknown as { stato_uscita?: string }).stato_uscita ?? (r.data_pagamento ? 'Pagato' : 'No Pagato');
+                  const normalized = String(raw || '').trim().toLowerCase();
+                  const isPagato = /^pagat/.test(normalized) && !/^no\s*pagat/.test(normalized);
+                  const label = isPagato ? 'Pagato' : 'Non pagato';
+                  return (
+                    <Box
+                      sx={(theme: Theme) => ({
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        px: 1.5,
+                        height: 26,
+                        minWidth: 110,
+                        borderRadius: 10,
+                        bgcolor: alpha(isPagato ? theme.palette.success.main : theme.palette.error.main, 0.14),
+                        border: '1px solid',
+                        borderColor: alpha(isPagato ? theme.palette.success.main : theme.palette.error.main, 0.45),
+                        color: theme.palette.text.primary,
+                        fontWeight: 600,
+                        fontSize: '0.8rem',
+                        lineHeight: 1
+                      })}
+                    >
+                      {label}
+                    </Box>
+                  );
+                })()}
+              </TableCell>
               <TableCell align="right">
                 <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                   <Tooltip title="Modifica Uscita" arrow>
@@ -635,5 +624,3 @@ function UsciteTable({ commessaId, version }: { commessaId: string; version: num
     </Box>
   );
 }
-
-
