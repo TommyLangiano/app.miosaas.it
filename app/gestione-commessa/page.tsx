@@ -18,6 +18,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
+import Menu from '@mui/material/Menu';
 import Grid2 from '@mui/material/Grid2';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
@@ -408,6 +409,9 @@ function UsciteTable({ commessaId, version }: { commessaId: string; version: num
   const [editOpen, setEditOpen] = useState(false);
   const [editData, setEditData] = useState<Partial<UscitaRow> & { id?: number | string }>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  const [savingStatoId, setSavingStatoId] = useState<string | number | null>(null);
+  const [statoMenuAnchorEl, setStatoMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [statoMenuRowId, setStatoMenuRowId] = useState<string | number | null>(null);
 
   if (!commessaId) return null;
   if (isLoading) return <Skeleton height={120} />;
@@ -423,6 +427,21 @@ function UsciteTable({ commessaId, version }: { commessaId: string; version: num
     }
   };
 
+  const updateStatoAndSave = async (rowId: string | number, newValue: 'Pagato' | 'No Pagato') => {
+    try {
+      setSavingStatoId(rowId);
+      await axios.put(`/api/tenants/uscite/${rowId}` , { stato_uscita: newValue });
+      await mutate(swrKey);
+      showBanner('Stato aggiornato.','success');
+    } catch {
+      showBanner('Errore durante aggiornamento stato.','error');
+    } finally {
+      setSavingStatoId(null);
+      setStatoMenuAnchorEl(null);
+      setStatoMenuRowId(null);
+    }
+  };
+
   return (
     <Box>
       {banner && (
@@ -433,48 +452,86 @@ function UsciteTable({ commessaId, version }: { commessaId: string; version: num
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell>N° Fattura</TableCell>
-            <TableCell sx={{ width: { xs: 'auto', md: '40%' } }}>Fornitore</TableCell>
-            <TableCell align="center">Importo Totale</TableCell>
-            <TableCell>Data Pagamento</TableCell>
+            <TableCell sx={{ width: { md: '14%' } }}>N° Fattura</TableCell>
+            <TableCell sx={{ width: { xs: 'auto', md: '26%' } }}>Fornitore</TableCell>
+            <TableCell align="center" sx={{ width: { md: '14%' } }}>Importo Totale</TableCell>
+            <TableCell sx={{ width: { md: '16%' } }}>Data Pagamento</TableCell>
             <TableCell align="center" sx={{ width: { xs: 96, md: 120 } }}>Stato</TableCell>
-            <TableCell align="right">Azioni</TableCell>
+            <TableCell align="right" sx={{ width: { md: '16%' } }}>Azioni</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {rows.map((r, idx) => (
             <TableRow key={idx} hover>
-              <TableCell>{r.numero_fattura}</TableCell>
-              <TableCell sx={{ width: { xs: 'auto', md: '40%' } }}>{r.fornitore}</TableCell>
-              <TableCell align="center">{formatEuro(r.importo_totale)}</TableCell>
-              <TableCell>{r.data_pagamento ? String(r.data_pagamento).slice(0, 10) : '—'}</TableCell>
+              <TableCell sx={{ width: { md: '14%' } }}>{r.numero_fattura}</TableCell>
+              <TableCell sx={{ width: { xs: 'auto', md: '26%' } }}>{r.fornitore}</TableCell>
+              <TableCell align="center" sx={{ width: { md: '14%' } }}>{formatEuro(r.importo_totale)}</TableCell>
+              <TableCell sx={{ width: { md: '16%' } }}>{r.data_pagamento ? String(r.data_pagamento).slice(0, 10) : '—'}</TableCell>
               <TableCell align="center" sx={{ width: { xs: 96, md: 120 } }}>
                 {(() => {
                   const raw = (r as unknown as { stato_uscita?: string }).stato_uscita ?? (r.data_pagamento ? 'Pagato' : 'No Pagato');
                   const normalized = String(raw || '').trim().toLowerCase();
                   const isPagato = /^pagat/.test(normalized) && !/^no\s*pagat/.test(normalized);
                   const label = isPagato ? 'Pagato' : 'Non pagato';
+                  const isSaving = savingStatoId === r.id;
                   return (
-                    <Box
-                      sx={(theme: Theme) => ({
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        px: 1.5,
-                        height: 26,
-                        minWidth: 110,
-                        borderRadius: 10,
-                        bgcolor: alpha(isPagato ? theme.palette.success.main : theme.palette.error.main, 0.14),
-                        border: '1px solid',
-                        borderColor: alpha(isPagato ? theme.palette.success.main : theme.palette.error.main, 0.45),
-                        color: theme.palette.text.primary,
-                        fontWeight: 600,
-                        fontSize: '0.8rem',
-                        lineHeight: 1
-                      })}
-                    >
-                      {label}
-                    </Box>
+                    <>
+                      <Box
+                        onClick={(e) => {
+                          if (isSaving) return;
+                          setStatoMenuAnchorEl(e.currentTarget as HTMLElement);
+                          setStatoMenuRowId(r.id ?? null);
+                        }}
+                        sx={(theme: Theme) => ({
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 0.5,
+                          px: 1.25,
+                          height: 26,
+                          minWidth: 110,
+                          borderRadius: 10,
+                          bgcolor: alpha(isPagato ? theme.palette.success.main : theme.palette.error.main, 0.14),
+                          border: '1px solid',
+                          borderColor: alpha(isPagato ? theme.palette.success.main : theme.palette.error.main, 0.45),
+                          color: theme.palette.text.primary,
+                          fontWeight: 600,
+                          fontSize: '0.8rem',
+                          lineHeight: 1,
+                          cursor: isSaving ? 'not-allowed' : 'pointer',
+                          opacity: isSaving ? 0.6 : 1,
+                          transition: 'opacity 180ms ease',
+                          '&:hover': {
+                            opacity: isSaving ? 0.6 : 0.85
+                          }
+                        })}
+                      >
+                        <Box component="span">{label}</Box>
+                        <ExpandMoreRoundedIcon fontSize="small" />
+                      </Box>
+                      <Menu
+                        open={statoMenuRowId === r.id}
+                        anchorEl={statoMenuAnchorEl}
+                        onClose={() => { setStatoMenuAnchorEl(null); setStatoMenuRowId(null); }}
+                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                      >
+                        <MenuItem
+                          selected={isPagato}
+                          disabled={isSaving}
+                          onClick={() => r.id != null ? updateStatoAndSave(r.id, 'Pagato') : undefined}
+                        >
+                          Pagato
+                        </MenuItem>
+                        <MenuItem
+                          selected={!isPagato}
+                          disabled={isSaving}
+                          onClick={() => r.id != null ? updateStatoAndSave(r.id, 'No Pagato') : undefined}
+                        >
+                          Non pagato
+                        </MenuItem>
+                      </Menu>
+                    </>
                   );
                 })()}
               </TableCell>
