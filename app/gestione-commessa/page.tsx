@@ -53,7 +53,7 @@ export default function GestioneCommessaPage() {
   const [selectedSide, setSelectedSide] = useState<'entrate' | 'uscite' | ''>('');
   const [usciteVersion, setUsciteVersion] = useState(0);
   const [entrateVersion, setEntrateVersion] = useState(0);
-  const [openUscita, setOpenUscita] = useState(false);
+  const [openUscita, setOpenUscita] = useState(true);
   const [selectedDocType, setSelectedDocType] = useState<'fattura' | 'scontrini' | ''>('');
   // Card form uscita senza collapse
   const { data, error, isLoading } = useSWR('/api/tenants/commesse');

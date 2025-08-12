@@ -16,6 +16,10 @@ import Migration012AddStatoUscita from './012-add-stato-uscita';
 import Migration013AddTipologiaUscita from './013-add-tipologia-uscita';
 import Migration014CreateEntrate from './014-create-entrate';
 import Migration015EntrateCommessaToUuid from './015-entrate-commessa-to-uuid';
+import Migration016CreateClienti from './016-create-clienti';
+import Migration017CreateFornitori from './017-create-fornitori';
+import Migration018AddAliquotaIvaPredefinita from './018-add-aliquota-iva-predefinita';
+import Migration019AlignFornitoriColumns from './019-align-fornitori-columns';
 
 /**
  * Sistema di migrazioni per MioSaaS
@@ -36,7 +40,11 @@ class MigrationRunner {
     Migration012AddStatoUscita,
     Migration013AddTipologiaUscita,
     Migration014CreateEntrate,
-    Migration015EntrateCommessaToUuid
+    Migration015EntrateCommessaToUuid,
+    Migration016CreateClienti,
+    Migration017CreateFornitori,
+    Migration018AddAliquotaIvaPredefinita,
+    Migration019AlignFornitoriColumns
   ];
 
   /**

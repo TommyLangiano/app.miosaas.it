@@ -1,7 +1,7 @@
-import Sample from '../../src/views/sample-page';
+import Anagrafica from '../../src/views/application/anagrafica/Anagrafica';
 
 export default function AnagraficaPage() {
-  return <Sample />;
+  return <Anagrafica />;
 }
 
 

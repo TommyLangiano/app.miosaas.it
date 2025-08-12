@@ -12,6 +12,8 @@ import documentsRoutes from './routes/tenants/documents';
 import commesseRoutes from './routes/tenants/commesse';
 import usciteRoutes from './routes/tenants/uscite';
 import entrateRoutes from './routes/tenants/entrate';
+import clientiRoutes from './routes/tenants/clienti';
+import fornitoriRoutes from './routes/tenants/fornitori';
 import testAuthRoutes from './routes/test-auth';
 import userManagementRoutes from './routes/user-management';
 import syncCognitoRoutes from './routes/sync-cognito';
@@ -172,6 +174,8 @@ class App {
     this.app.use('/api/tenants/commesse', commesseRoutes);
     this.app.use('/api/tenants/uscite', usciteRoutes);
     this.app.use('/api/tenants/entrate', entrateRoutes);
+    this.app.use('/api/tenants/clienti', clientiRoutes);
+    this.app.use('/api/tenants/fornitori', fornitoriRoutes);
     
     // 🧪 Test authentication routes (JWT ↔ DB testing)
     this.app.use('/api/test-auth', testAuthRoutes);
