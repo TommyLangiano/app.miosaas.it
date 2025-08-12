@@ -36,6 +36,7 @@ import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
 import EuroRoundedIcon from '@mui/icons-material/EuroRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
 import { getCommessaCache, setCommessaCache } from '../../../src/utils/commesseCache';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
@@ -425,6 +426,15 @@ export default function CommessaDettaglioPage() {
       <Box sx={{ mt: 2, mb: 1.25, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
         {/* Ricavi - Verde (da entrate) */}
         <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#16a34a', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(22,163,74,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(22,163,74,0.35)' } }}>
+          <Tooltip title="Vai a Gestione Commessa (Ricavi)" arrow>
+            <IconButton
+              size="small"
+              onClick={() => router.push(`/gestione-commessa?commessa_id=${encodeURIComponent(id)}&side=entrate&doc=fattura`) }
+              sx={{ position: 'absolute', top: 6, right: 6, color: 'common.white', opacity: 0.85, '&:hover': { opacity: 1 } }}
+            >
+              <OpenInNewRoundedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
             <Typography variant="subtitle1" color="common.white" sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3 }}>RICAVI</Typography>
             <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
@@ -445,6 +455,15 @@ export default function CommessaDettaglioPage() {
         </Box>
         {/* Costi - Rosso */}
         <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#ef4444', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(239,68,68,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(239,68,68,0.35)' } }}>
+          <Tooltip title="Vai a Gestione Commessa (Costi)" arrow>
+            <IconButton
+              size="small"
+              onClick={() => router.push(`/gestione-commessa?commessa_id=${encodeURIComponent(id)}&side=uscite&doc=fattura`) }
+              sx={{ position: 'absolute', top: 6, right: 6, color: 'common.white', opacity: 0.85, '&:hover': { opacity: 1 } }}
+            >
+              <OpenInNewRoundedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
             <Typography variant="subtitle1" color="common.white" sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3 }}>COSTI</Typography>
             <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>

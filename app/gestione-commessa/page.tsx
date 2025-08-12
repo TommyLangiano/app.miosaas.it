@@ -1,5 +1,6 @@
 "use client";
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useSWR, mutate } from '../../src/utils/swr';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -20,7 +21,7 @@ import DialogActions from '@mui/material/DialogActions';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
 import Menu from '@mui/material/Menu';
-import Grid2 from '@mui/material/Grid2';
+import Grid from '@mui/material/Grid';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import axios from '../../src/utils/axios';
@@ -38,7 +39,6 @@ import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
 import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import Collapse from '@mui/material/Collapse';
-import { useEffect } from 'react';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import { enqueueSnackbar, closeSnackbar } from 'notistack';
@@ -53,10 +53,12 @@ export default function GestioneCommessaPage() {
   const [selectedSide, setSelectedSide] = useState<'entrate' | 'uscite' | ''>('');
   const [usciteVersion, setUsciteVersion] = useState(0);
   const [entrateVersion, setEntrateVersion] = useState(0);
-  const [openUscita, setOpenUscita] = useState(true);
+  const [openUscita, setOpenUscita] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState<'fattura' | 'scontrini' | ''>('');
   // Card form uscita senza collapse
   const { data, error, isLoading } = useSWR('/api/tenants/commesse');
+  const searchParams = useSearchParams();
+  const initializedFromQuery = useRef(false);
 
   const options: CommessaOption[] = useMemo(() => (Array.isArray(data) ? (data as CommessaOption[]) : []), [data]);
   const selectedCommessaName = useMemo(() => {
@@ -106,6 +108,31 @@ export default function GestioneCommessaPage() {
   );
 
   // Rimosso Popper personalizzato; uso Popper di default con slotProps
+  // Inizializza da query string (commessa_id, side, doc)
+  useEffect(() => {
+    if (initializedFromQuery.current) return;
+    const cid = searchParams?.get('commessa_id');
+    const side = (searchParams?.get('side') as 'entrate' | 'uscite' | null) || null;
+    const doc = (searchParams?.get('doc') as 'fattura' | 'scontrini' | null) || null;
+    let did = false;
+    if (cid) {
+      setSelectedId(String(cid));
+      did = true;
+    }
+    if (side === 'entrate' || side === 'uscite') {
+      setSelectedSide(side);
+      did = true;
+    }
+    if (doc && side === 'uscite') {
+      setSelectedDocType(doc);
+    } else if (side === 'entrate') {
+      setSelectedDocType('fattura');
+    }
+    if (did) {
+      setOpenUscita(false);
+      initializedFromQuery.current = true;
+    }
+  }, [searchParams]);
 
   return (
     <>
@@ -439,59 +466,59 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
     <Box>
       {/* Reset automatico su cambio commessa o tipo documento */}
       {/**/}
-      <Grid2 container spacing={2} sx={{ width: '100%', m: 0 }}>
+      <Grid container spacing={2} sx={{ width: '100%', m: 0 }}>
         {/* Prima riga */}
         {docType === 'scontrini' ? (
           <>
-            <Grid2 size={{ xs: 12, md: 5 }}>
+            <Grid size={{ xs: 12, md: 5 }}>
               <TextField label="Fornitore" InputLabelProps={{ shrink: true }} required fullWidth value={form.fornitore} onChange={handleChange('fornitore')} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 5 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 5 }}>
               <TextField label="Tipologia" InputLabelProps={{ shrink: true }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 2 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 2 }}>
               <TextField type="date" InputLabelProps={{ shrink: true }} label="Data" required fullWidth value={form.data_pagamento} onChange={handleChange('data_pagamento')} />
-            </Grid2>
+            </Grid>
           </>
         ) : (
           <>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField label="N. Fattura" InputLabelProps={{ shrink: true }} required fullWidth value={form.numero_fattura} onChange={handleChange('numero_fattura')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
           <TextField label="Fornitore" InputLabelProps={{ shrink: true }} required fullWidth value={form.fornitore} onChange={handleChange('fornitore')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
           <TextField label="Tipologia" InputLabelProps={{ shrink: true }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="date" InputLabelProps={{ shrink: true }} label="Emissione Fattura" required fullWidth value={form.emissione_fattura} onChange={handleChange('emissione_fattura')} />
-        </Grid2>
+        </Grid>
           </>
         )}
 
         {/* Seconda riga: Data Pagamento spostata su */}
         {docType === 'scontrini' ? (
           <>
-            <Grid2 size={{ xs: 12, md: 4 }}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField type="number" label="Importo" InputLabelProps={{ shrink: true }} required fullWidth value={form.importo_totale} onChange={handleChange('importo_totale')} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 4 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField label="Metodo di Pagamento" InputLabelProps={{ shrink: true }} fullWidth value={form.modalita_pagamento} onChange={handleChange('modalita_pagamento')} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 4 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField label="Stato" InputLabelProps={{ shrink: true }} fullWidth value={'Pagato'} disabled />
-            </Grid2>
+            </Grid>
           </>
         ) : (
           <>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="date" InputLabelProps={{ shrink: true }} label="Data Pagamento" required fullWidth value={form.data_pagamento} onChange={handleChange('data_pagamento')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="number" label="Importo Totale" InputLabelProps={{ shrink: true }} required fullWidth value={form.importo_totale} onChange={handleChange('importo_totale')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <FormControl fullWidth>
             <InputLabel id="aliquota-iva-label" shrink>Aliquota IVA</InputLabel>
             <Select labelId="aliquota-iva-label" label="Aliquota IVA" value={form.aliquota_iva}
@@ -502,29 +529,29 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
               <MenuItem value="22">22%</MenuItem>
             </Select>
           </FormControl>
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="number" label="Imponibile" InputLabelProps={{ shrink: true }} required fullWidth value={form.imponibile} onChange={handleChange('imponibile')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="number" label="IVA" InputLabelProps={{ shrink: true }} required fullWidth value={form.iva} onChange={handleChange('iva')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField label={"Modalità di pagamento"} InputLabelProps={{ shrink: true }} fullWidth value={form.modalita_pagamento} onChange={handleChange('modalita_pagamento')} />
-        </Grid2>
+        </Grid>
           </>
         )}
 
         {/* Terza riga */}
         {docType === 'scontrini' ? null : (
           <>
-        <Grid2 size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <TextField label="Banca di Emissione" InputLabelProps={{ shrink: true }} fullWidth value={form.banca_emissione} onChange={handleChange('banca_emissione')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 3 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 3 }}>
           <TextField label="Numero di Conto" InputLabelProps={{ shrink: true }} fullWidth value={form.numero_conto} onChange={handleChange('numero_conto')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 3 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 3 }}>
           <FormControl fullWidth required>
             <InputLabel id="stato-uscita-label" shrink>Stato uscita</InputLabel>
             <Select labelId="stato-uscita-label" label="Stato uscita" value={form.stato_uscita}
@@ -533,10 +560,10 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
               <MenuItem value="Pagato">Pagato</MenuItem>
             </Select>
           </FormControl>
-        </Grid2>
+        </Grid>
           </>
         )}
-      </Grid2>
+      </Grid>
       <Divider sx={{ my: 2 }} />
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
         <Button variant="contained" onClick={handleSubmit} disabled={saving}>
@@ -586,27 +613,27 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
 
   return (
     <Box>
-      <Grid2 container spacing={2} sx={{ width: '100%', m: 0 }}>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+      <Grid container spacing={2} sx={{ width: '100%', m: 0 }}>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField label="N. Fattura" InputLabelProps={{ shrink: true }} required fullWidth value={form.numero_fattura} onChange={handleChange('numero_fattura')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
           <TextField label="Cliente" InputLabelProps={{ shrink: true }} required fullWidth value={form.cliente} onChange={handleChange('cliente')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 4 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
           <TextField label="Tipologia" InputLabelProps={{ shrink: true }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="date" InputLabelProps={{ shrink: true }} label="Emissione Fattura" required fullWidth value={form.emissione_fattura} onChange={handleChange('emissione_fattura')} />
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <TextField type="date" InputLabelProps={{ shrink: true }} label="Data Pagamento" required fullWidth value={form.data_pagamento} onChange={handleChange('data_pagamento')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 3 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 3 }}>
           <TextField type="number" label="Importo Totale" InputLabelProps={{ shrink: true }} required fullWidth value={form.importo_totale} onChange={handleChange('importo_totale')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <FormControl fullWidth>
             <InputLabel id="aliquota-iva-entrate-label" shrink>Aliquota IVA</InputLabel>
             <Select labelId="aliquota-iva-entrate-label" label="Aliquota IVA" value={form.aliquota_iva}
@@ -617,17 +644,17 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
               <MenuItem value="22">22%</MenuItem>
             </Select>
           </FormControl>
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="number" label="Imponibile" InputLabelProps={{ shrink: true }} required fullWidth value={form.imponibile} onChange={handleChange('imponibile')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 2 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
           <TextField type="number" label="IVA" InputLabelProps={{ shrink: true }} required fullWidth value={form.iva} onChange={handleChange('iva')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 6 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
           <TextField label={'Modalità di pagamento'} InputLabelProps={{ shrink: true }} fullWidth value={form.modalita_pagamento} onChange={handleChange('modalita_pagamento')} />
-        </Grid2>
-        <Grid2 size={{ xs: 12, md: 6 }}>
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
           <FormControl fullWidth required>
             <InputLabel id="stato-entrata-label" shrink>Stato</InputLabel>
             <Select labelId="stato-entrata-label" label="Stato" value={form.stato_entrata}
@@ -636,8 +663,8 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
               <MenuItem value="Pagato">Pagato</MenuItem>
             </Select>
           </FormControl>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
       <Divider sx={{ my: 2 }} />
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
         <Button variant="contained" onClick={handleSubmit} disabled={saving}>
@@ -723,50 +750,50 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
 
   const renderUscitaDetails = (r: UscitaRow) => (
     <Box sx={{ p: 1.5, bgcolor: (theme: Theme) => alpha(theme.palette.grey[500], 0.06), borderRadius: 2 }}>
-      <Grid2 container spacing={1.5} columns={12}>
+      <Grid container spacing={1.5} columns={12}>
         {r.emissione_fattura && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">Emissione Fattura</Typography>
             <Typography variant="body2">{String(r.emissione_fattura).slice(0,10)}</Typography>
-          </Grid2>
+          </Grid>
         )}
         {((r as { aliquota_iva?: number }).aliquota_iva ?? null) !== null && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">Aliquota IVA</Typography>
             <Typography variant="body2">{String((r as { aliquota_iva?: number }).aliquota_iva)}%</Typography>
-          </Grid2>
+          </Grid>
         )}
         {((r as { imponibile?: number }).imponibile ?? null) !== null && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">Imponibile</Typography>
             <Typography variant="body2">{formatEuro((r as { imponibile?: number }).imponibile)}</Typography>
-          </Grid2>
+          </Grid>
         )}
         {((r as { iva?: number }).iva ?? null) !== null && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">IVA</Typography>
             <Typography variant="body2">{formatEuro((r as { iva?: number }).iva)}</Typography>
-          </Grid2>
+          </Grid>
         )}
         {((r as { banca_emissione?: string }).banca_emissione || '').trim() !== '' && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">Banca di Emissione</Typography>
             <Typography variant="body2">{(r as { banca_emissione?: string }).banca_emissione}</Typography>
-          </Grid2>
+          </Grid>
         )}
         {((r as { numero_conto?: string }).numero_conto || '').trim() !== '' && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">Numero di Conto</Typography>
             <Typography variant="body2">{(r as { numero_conto?: string }).numero_conto}</Typography>
-          </Grid2>
+          </Grid>
         )}
         {((r as { modalita_pagamento?: string }).modalita_pagamento || '').trim() !== '' && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">Modalità di pagamento</Typography>
             <Typography variant="body2">{(r as { modalita_pagamento?: string }).modalita_pagamento}</Typography>
-          </Grid2>
+          </Grid>
         )}
-      </Grid2>
+      </Grid>
     </Box>
   );
 
@@ -1013,32 +1040,32 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>Modifica costo</DialogTitle>
         <DialogContent>
-          <Grid2 container spacing={2} sx={{ mt: 0.5 }}>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
             {docType === 'fattura' && (
-              <Grid2 size={{ xs: 12, md: 3 }}>
+              <Grid size={{ xs: 12, md: 3 }}>
                 <TextField label="N. Fattura" fullWidth value={editData.numero_fattura || ''} onChange={(e) => setEditData((p) => ({ ...p, numero_fattura: e.target.value }))} InputLabelProps={{ shrink: true }} />
-              </Grid2>
+              </Grid>
             )}
-            <Grid2 size={{ xs: 12, md: docType === 'fattura' ? 5 : 6 }}>
+            <Grid size={{ xs: 12, md: docType === 'fattura' ? 5 : 6 }}>
               <TextField label="Fornitore" fullWidth value={editData.fornitore || ''} onChange={(e) => setEditData((p) => ({ ...p, fornitore: e.target.value }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: docType === 'fattura' ? 4 : 6 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: docType === 'fattura' ? 4 : 6 }}>
               <TextField label="Tipologia" fullWidth value={editData.tipologia || ''} onChange={(e) => setEditData((p) => ({ ...p, tipologia: e.target.value }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
+            </Grid>
             {docType === 'fattura' && (
-              <Grid2 size={{ xs: 12, md: 3 }}>
+              <Grid size={{ xs: 12, md: 3 }}>
                 <TextField type="date" label="Emissione Fattura" fullWidth value={editData.emissione_fattura ? String(editData.emissione_fattura).slice(0,10) : ''} onChange={(e) => setEditData((p) => ({ ...p, emissione_fattura: e.target.value }))} InputLabelProps={{ shrink: true }} />
-              </Grid2>
+              </Grid>
             )}
-            <Grid2 size={{ xs: 12, md: 3 }}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <TextField type="date" label="Data Pagamento" fullWidth value={editData.data_pagamento ? String(editData.data_pagamento).slice(0,10) : ''} onChange={(e) => setEditData((p) => ({ ...p, data_pagamento: e.target.value }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 3 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
               <TextField type="number" label="Importo Totale" fullWidth value={editData.importo_totale ?? ''} onChange={(e) => setEditData((p) => ({ ...p, importo_totale: e.target.value as unknown as number }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
+            </Grid>
             {docType === 'fattura' && (
               <>
-                <Grid2 size={{ xs: 12, md: 2 }}>
+                <Grid size={{ xs: 12, md: 2 }}>
                   <FormControl fullWidth>
                     <InputLabel id="aliquota-iva-uscite-edit" shrink>Aliquota IVA</InputLabel>
                     <Select labelId="aliquota-iva-uscite-edit" label="Aliquota IVA" value={String(editData.aliquota_iva ?? '')} onChange={(e) => setEditData((p) => ({ ...p, aliquota_iva: Number(e.target.value) }))}>
@@ -1048,23 +1075,23 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
                       <MenuItem value="22">22%</MenuItem>
                     </Select>
                   </FormControl>
-                </Grid2>
-                <Grid2 size={{ xs: 12, md: 2 }}>
+                </Grid>
+                <Grid size={{ xs: 12, md: 2 }}>
                   <TextField type="number" label="Imponibile" fullWidth value={editData.imponibile ?? ''} onChange={(e) => setEditData((p) => ({ ...p, imponibile: e.target.value as unknown as number }))} InputLabelProps={{ shrink: true }} />
-                </Grid2>
-                <Grid2 size={{ xs: 12, md: 2 }}>
+                </Grid>
+                <Grid size={{ xs: 12, md: 2 }}>
                   <TextField type="number" label="IVA" fullWidth value={editData.iva ?? ''} onChange={(e) => setEditData((p) => ({ ...p, iva: e.target.value as unknown as number }))} InputLabelProps={{ shrink: true }} />
-                </Grid2>
-                <Grid2 size={{ xs: 12, md: 4 }}>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <TextField label="Modalità di pagamento" fullWidth value={editData.modalita_pagamento || ''} onChange={(e) => setEditData((p) => ({ ...p, modalita_pagamento: e.target.value }))} InputLabelProps={{ shrink: true }} />
-                </Grid2>
-                <Grid2 size={{ xs: 12, md: 4 }}>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <TextField label="Banca di Emissione" fullWidth value={(editData as Record<string, unknown>).banca_emissione as string || ''} onChange={(e) => setEditData((p) => ({ ...p, banca_emissione: e.target.value }))} InputLabelProps={{ shrink: true }} />
-                </Grid2>
-                <Grid2 size={{ xs: 12, md: 4 }}>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <TextField label="Numero di Conto" fullWidth value={(editData as Record<string, unknown>).numero_conto as string || ''} onChange={(e) => setEditData((p) => ({ ...p, numero_conto: e.target.value }))} InputLabelProps={{ shrink: true }} />
-                </Grid2>
-                <Grid2 size={{ xs: 12, md: 4 }}>
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
                   <FormControl fullWidth>
                     <InputLabel id="stato-uscita-edit" shrink>Stato uscita</InputLabel>
                     <Select labelId="stato-uscita-edit" label="Stato uscita" value={String(editData.stato_uscita ?? '')} onChange={(e) => setEditData((p) => ({ ...p, stato_uscita: String(e.target.value) }))}>
@@ -1072,20 +1099,20 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
                       <MenuItem value="Pagato">Pagato</MenuItem>
                     </Select>
                   </FormControl>
-                </Grid2>
+                </Grid>
               </>
             )}
             {docType === 'scontrini' && (
               <>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <TextField label="Modalità di pagamento" fullWidth value={editData.modalita_pagamento || ''} onChange={(e) => setEditData((p) => ({ ...p, modalita_pagamento: e.target.value }))} InputLabelProps={{ shrink: true }} />
-                </Grid2>
-                <Grid2 size={{ xs: 12, md: 6 }}>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <TextField label="Stato" fullWidth value={'Pagato'} disabled InputLabelProps={{ shrink: true }} />
-                </Grid2>
+                </Grid>
               </>
             )}
-          </Grid2>
+          </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditOpen(false)}>Annulla</Button>
@@ -1192,38 +1219,38 @@ function EntrateTable({ commessaId, version }: { commessaId: string; version: nu
 
   const renderEntrataDetails = (r: EntrataRow) => (
     <Box sx={{ p: 1.5, bgcolor: (theme: Theme) => alpha(theme.palette.grey[500], 0.06), borderRadius: 2 }}>
-      <Grid2 container spacing={1.5} columns={12}>
+      <Grid container spacing={1.5} columns={12}>
         {r.emissione_fattura && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">Emissione Fattura</Typography>
             <Typography variant="body2">{String(r.emissione_fattura).slice(0,10)}</Typography>
-          </Grid2>
+          </Grid>
         )}
         {((r.aliquota_iva as number | undefined) ?? null) !== null && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">Aliquota IVA</Typography>
             <Typography variant="body2">{String(r.aliquota_iva)}%</Typography>
-          </Grid2>
+          </Grid>
         )}
         {((r.imponibile as number | undefined) ?? null) !== null && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">Imponibile</Typography>
             <Typography variant="body2">{formatEuro(r.imponibile)}</Typography>
-          </Grid2>
+          </Grid>
         )}
         {((r.iva as number | undefined) ?? null) !== null && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">IVA</Typography>
             <Typography variant="body2">{formatEuro(r.iva)}</Typography>
-          </Grid2>
+          </Grid>
         )}
         {((r.modalita_pagamento || '').trim() !== '') && (
-          <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Typography variant="caption" color="text.secondary">Modalità di pagamento</Typography>
             <Typography variant="body2">{r.modalita_pagamento}</Typography>
-          </Grid2>
+          </Grid>
         )}
-      </Grid2>
+      </Grid>
     </Box>
   );
 
@@ -1449,28 +1476,28 @@ function EntrateTable({ commessaId, version }: { commessaId: string; version: nu
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>Modifica ricavo</DialogTitle>
         <DialogContent>
-          <Grid2 container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid2 size={{ xs: 12, md: 3 }}>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <TextField label="N. Fattura" fullWidth value={editData.numero_fattura || ''} onChange={(e) => setEditData((p) => ({ ...p, numero_fattura: e.target.value }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 5 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 5 }}>
               <TextField label="Cliente" fullWidth value={editData.cliente || ''} onChange={(e) => setEditData((p) => ({ ...p, cliente: e.target.value }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 4 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField label="Tipologia" fullWidth value={editData.tipologia || ''} onChange={(e) => setEditData((p) => ({ ...p, tipologia: e.target.value }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
+            </Grid>
             {/* Riga 2: Emissione, Data pagamento, Importo Totale */}
-            <Grid2 size={{ xs: 12, md: 4 }}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField type="date" label="Emissione Fattura" fullWidth value={editData.emissione_fattura ? String(editData.emissione_fattura).slice(0,10) : ''} onChange={(e) => setEditData((p) => ({ ...p, emissione_fattura: e.target.value }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 4 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField type="date" label="Data Pagamento" fullWidth value={editData.data_pagamento ? String(editData.data_pagamento).slice(0,10) : ''} onChange={(e) => setEditData((p) => ({ ...p, data_pagamento: e.target.value }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 4 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField type="number" label="Importo Totale" fullWidth value={editData.importo_totale ?? ''} onChange={(e) => setEditData((p) => ({ ...p, importo_totale: e.target.value as unknown as number }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
+            </Grid>
             {/* Riga 3: Aliquota IVA, Imponibile, IVA, Modalità di pagamento */}
-            <Grid2 size={{ xs: 12, md: 3 }}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <FormControl fullWidth>
                 <InputLabel id="aliquota-iva-entrate-edit" shrink>Aliquota IVA</InputLabel>
                 <Select labelId="aliquota-iva-entrate-edit" label="Aliquota IVA" value={String(editData.aliquota_iva ?? '')} onChange={(e) => setEditData((p) => ({ ...p, aliquota_iva: Number(e.target.value) }))}>
@@ -1480,18 +1507,18 @@ function EntrateTable({ commessaId, version }: { commessaId: string; version: nu
                   <MenuItem value="22">22%</MenuItem>
                 </Select>
               </FormControl>
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 3 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
               <TextField type="number" label="Imponibile" fullWidth value={editData.imponibile ?? ''} onChange={(e) => setEditData((p) => ({ ...p, imponibile: e.target.value as unknown as number }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 3 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
               <TextField type="number" label="IVA" fullWidth value={editData.iva ?? ''} onChange={(e) => setEditData((p) => ({ ...p, iva: e.target.value as unknown as number }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
-            <Grid2 size={{ xs: 12, md: 3 }}>
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
               <TextField label="Modalità di pagamento" fullWidth value={editData.modalita_pagamento || ''} onChange={(e) => setEditData((p) => ({ ...p, modalita_pagamento: e.target.value }))} InputLabelProps={{ shrink: true }} />
-            </Grid2>
+            </Grid>
             {/* Riga 4: Stato a tutta larghezza */}
-            <Grid2 size={{ xs: 12, md: 12 }}>
+            <Grid size={{ xs: 12, md: 12 }}>
               <FormControl fullWidth>
                 <InputLabel id="stato-entrata-edit" shrink>Stato</InputLabel>
                 <Select labelId="stato-entrata-edit" label="Stato" value={String(editData.stato_entrata ?? '')} onChange={(e) => setEditData((p) => ({ ...p, stato_entrata: String(e.target.value) }))}>
@@ -1499,8 +1526,8 @@ function EntrateTable({ commessaId, version }: { commessaId: string; version: nu
                   <MenuItem value="Pagato">Pagato</MenuItem>
                 </Select>
               </FormControl>
-            </Grid2>
-          </Grid2>
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditOpen(false)}>Annulla</Button>
