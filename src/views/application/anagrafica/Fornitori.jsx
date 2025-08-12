@@ -14,6 +14,11 @@ import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
+import Tooltip from '@mui/material/Tooltip';
+import IconButton from '@mui/material/IconButton';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import Divider from '@mui/material/Divider';
 import { fetcher } from '../../../utils/axios';
 import { gridSpacing } from '../../../store/constant';
@@ -37,6 +42,18 @@ export default function Fornitori() {
     return arr;
   }, [rows]);
 
+  const grouped = useMemo(() => {
+    const map = new Map();
+    sorted.forEach((row) => {
+      const name = getDisplayName(row);
+      const first = (name?.[0] || '#').toUpperCase();
+      const key = /[A-Z]/.test(first) ? first : '#';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(row);
+    });
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [sorted]);
+
   return (
     <Grid container spacing={gridSpacing}>
       <Grid size={12}>
@@ -51,29 +68,64 @@ export default function Fornitori() {
           <Button component={Link} href="/anagrafica/fornitori/nuovo" variant="contained">Nuovo Fornitore</Button>
         </Box>
         <Box sx={{ mt: 2, width: '100%' }}>
-          {sorted.map((row, idx) => (
-            <Card key={row.id ?? idx} sx={{ mb: 1.25 }} variant="outlined">
-              <CardContent sx={{ py: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-                  <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
-                    <Avatar sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', width: 40, height: 40, fontWeight: 700 }}>
-                      {getInitials(row)}
-                    </Avatar>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="subtitle1" noWrap sx={{ fontWeight: 600 }}>
-                        {getDisplayName(row)}
-                      </Typography>
-                      <Stack direction="row" spacing={1} sx={{ color: 'text.secondary' }}>
-                        <Typography variant="caption" noWrap>{row?.citta || '—'}</Typography>
-                        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-                        <Typography variant="caption" noWrap>{row?.email || '—'}</Typography>
+          {grouped.map(([letter, items]) => (
+            <Box key={letter} sx={{ mb: 2 }}>
+              <Typography variant="overline" sx={{ color: 'text.secondary', pl: 0.5 }}>{letter}</Typography>
+              {items.map((row, idx) => (
+                <Card key={row.id ?? `${letter}-${idx}`} sx={{ mb: 1.25 }} variant="outlined">
+                  <CardContent sx={{ py: 1.25, '&:last-child': { pb: 1.25 } }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+                      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+                        <Avatar sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', width: 40, height: 40, fontWeight: 700 }}>
+                          {getInitials(row)}
+                        </Avatar>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="h3" noWrap sx={{ fontWeight: 900 }}>
+                            {getDisplayName(row)}
+                          </Typography>
+                          <Stack direction="row" spacing={2} sx={{ color: 'text.secondary', alignItems: 'center' }}>
+                            <Typography variant="caption" noWrap>
+                              Città: {row?.citta || '—'}
+                            </Typography>
+                            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+                            <Typography variant="caption" noWrap>
+                              Email: {row?.email || '—'}
+                            </Typography>
+                            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+                            <Typography variant="caption" noWrap>
+                              Telefono: {row?.telefono || '—'}
+                            </Typography>
+                          </Stack>
+                        </Box>
                       </Stack>
-                    </Box>
-                  </Stack>
-                  <Chip size="small" color="primary" variant="outlined" label={getFormaLabel(row)} />
-                </Stack>
-              </CardContent>
-            </Card>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Tooltip title="Info" arrow>
+                          <IconButton size="small" aria-label="Info fornitore" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '5px' }}
+                            onClick={() => {/* TODO: open details */}}
+                          >
+                            <InfoOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                    <Tooltip title="Modifica" arrow>
+                      <IconButton size="small" aria-label="Modifica fornitore" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '5px' }}
+                        onClick={() => { window.location.href = `/anagrafica/fornitori/${row.id}/modifica`; }}
+                      >
+                            <EditOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Elimina" arrow>
+                          <IconButton size="small" aria-label="Elimina fornitore" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '5px' }}
+                            onClick={() => {/* TODO: delete */}}
+                          >
+                            <DeleteOutlineOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
           ))}
           {!isLoading && sorted.length === 0 && (
             <Paper variant="outlined" sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>Nessun fornitore trovato</Paper>

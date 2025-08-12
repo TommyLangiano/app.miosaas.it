@@ -103,7 +103,7 @@ export default function NuovoFornitorePage() {
       const headers: Record<string, string> = {};
       if (companyId) headers['X-Company-ID'] = companyId;
       await axios.post('/api/tenants/fornitori', form, { headers });
-      router.replace('/anagrafica');
+      router.replace('/anagrafica?tab=fornitori');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Errore nel salvataggio');
     } finally {
@@ -210,7 +210,12 @@ export default function NuovoFornitorePage() {
               <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' } }}>
                 <TextField name="mod_pagamento_pref" label="Modalità di pagamento preferita" value={form.mod_pagamento_pref} onChange={handleChange} slotProps={{ inputLabel: { shrink: true } }} />
                 <TextField name="iban" label="IBAN" value={form.iban} onChange={handleChange} slotProps={{ inputLabel: { shrink: true } }} />
-                <TextField name="aliquota_iva_predefinita" type="number" label="Aliquota IVA predefinita" value={form.aliquota_iva_predefinita} onChange={handleChange} InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }} slotProps={{ inputLabel: { shrink: true } }} />
+                <TextField select name="aliquota_iva_predefinita" label="Aliquota IVA predefinita" value={form.aliquota_iva_predefinita} onChange={handleChange} slotProps={{ inputLabel: { shrink: true } }}>
+                  <MenuItem value={0}>0%</MenuItem>
+                  <MenuItem value={4}>4%</MenuItem>
+                  <MenuItem value={10}>10%</MenuItem>
+                  <MenuItem value={22}>22%</MenuItem>
+                </TextField>
                 <TextField name="codice_sdi" label="Codice SDI" value={form.codice_sdi} onChange={handleChange} slotProps={{ inputLabel: { shrink: true } }} />
               </Box>
             </SC>

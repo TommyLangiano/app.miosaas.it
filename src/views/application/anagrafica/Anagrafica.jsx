@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 // material-ui
 import { useTheme } from '@mui/material/styles';
@@ -18,10 +19,12 @@ import { gridSpacing } from '../../../store/constant';
 
 import Clienti from './Clienti';
 import Fornitori from './Fornitori';
+import Banche from './Banche';
 
 // assets
 import GroupsTwoToneIcon from '@mui/icons-material/GroupsTwoTone';
 import StoreTwoToneIcon from '@mui/icons-material/StoreTwoTone';
+import AccountBalanceTwoToneIcon from '@mui/icons-material/AccountBalanceTwoTone';
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -41,9 +44,17 @@ function a11yProps(index) {
 export default function Anagrafica() {
   const theme = useTheme();
   const { borderRadius } = useConfig();
-  const [value, setValue] = useState(0);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tabParam = (searchParams?.get('tab') || '').toLowerCase();
+  const initialTab = tabParam === 'fornitori' ? 1 : tabParam === 'banche' ? 2 : 0;
+  const [value, setValue] = useState(initialTab);
 
-  const handleChange = (event, newValue) => setValue(newValue);
+  const handleChange = (event, newValue) => {
+    setValue(newValue);
+    const tab = newValue === 2 ? 'banche' : newValue === 1 ? 'fornitori' : 'clienti';
+    router.replace(`/anagrafica?tab=${tab}`);
+  };
 
   return (
     <MainCard>
@@ -67,11 +78,22 @@ export default function Anagrafica() {
                 flexDirection: 'row',
                 alignItems: 'flex-start',
                 textAlign: 'left',
-                justifyContent: 'flex-start'
+                justifyContent: 'flex-start',
+                position: 'relative'
               },
               '& button.Mui-selected': {
                 color: 'primary.main',
                 bgcolor: theme.palette.mode === ThemeMode.DARK ? 'dark.main' : 'grey.50'
+              },
+              '& button.Mui-selected::before': {
+                content: '""',
+                position: 'absolute',
+                left: 0,
+                top: 8,
+                bottom: 8,
+                width: 4,
+                borderRadius: '4px',
+                backgroundColor: 'primary.main'
               },
               '& button > svg': {
                 marginBottom: '0px !important',
@@ -112,6 +134,20 @@ export default function Anagrafica() {
               }
               {...a11yProps(1)}
             />
+            <Tab
+              icon={<AccountBalanceTwoToneIcon />}
+              label={
+                <Grid container direction="column">
+                  <Typography variant="subtitle1" color="inherit">
+                    Banche
+                  </Typography>
+                  <Typography variant="caption" sx={{ textTransform: 'capitalize' }}>
+                    Gestione istituti bancari
+                  </Typography>
+                </Grid>
+              }
+              {...a11yProps(2)}
+            />
           </Tabs>
         </Grid>
         <Grid size={{ xs: 12, sm: 8, md: 9 }}>
@@ -120,6 +156,9 @@ export default function Anagrafica() {
           </TabPanel>
           <TabPanel value={value} index={1}>
             <Fornitori />
+          </TabPanel>
+          <TabPanel value={value} index={2}>
+            <Banche />
           </TabPanel>
         </Grid>
       </Grid>

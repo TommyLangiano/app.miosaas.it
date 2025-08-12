@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect, Fragment } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSWR, mutate } from '../../src/utils/swr';
 import Box from '@mui/material/Box';
@@ -418,6 +418,27 @@ export default function GestioneCommessaPage() {
 type UscitaFormProps = { commessaId: string; docType: 'fattura' | 'scontrini'; onCreated?: () => void };
 function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
   const [saving, setSaving] = useState(false);
+  type FornitoreOption = {
+    id?: number | string;
+    ragione_sociale?: string;
+    nome?: string;
+    cognome?: string;
+    tipologia?: string;
+    aliquota_iva_predefinita?: number | string | null;
+    mod_pagamento_pref?: string | null;
+  };
+  const [fornitoreQuery, setFornitoreQuery] = useState('');
+  const { data: fornitoriData } = useSWR('/api/tenants/fornitori');
+  const formatFornitoreLabel = (f: FornitoreOption): string =>
+    (f.ragione_sociale && f.ragione_sociale.trim())
+      ? f.ragione_sociale
+      : `${f.nome || ''} ${f.cognome || ''}`.trim();
+  const allFornitori: FornitoreOption[] = Array.isArray(fornitoriData) ? (fornitoriData as FornitoreOption[]) : [];
+  const fornitori: FornitoreOption[] = (fornitoreQuery || '').trim() === ''
+    ? [...allFornitori].sort((a, b) => (formatFornitoreLabel(a).localeCompare(formatFornitoreLabel(b), 'it', { sensitivity: 'base' })))
+    : allFornitori
+        .filter((f) => formatFornitoreLabel(f).toLowerCase().includes(fornitoreQuery.toLowerCase()))
+        .sort((a, b) => (formatFornitoreLabel(a).localeCompare(formatFornitoreLabel(b), 'it', { sensitivity: 'base' })));
   const getInitialForm = (currentDocType: 'fattura' | 'scontrini') => ({
     fornitore: '',
     tipologia: '',
@@ -434,13 +455,36 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
     stato_uscita: currentDocType === 'scontrini' ? 'Pagato' : 'No Pagato'
   });
   const [form, setForm] = useState(getInitialForm(docType));
+  const computeDerived = (importoStr: string, aliquotaStr: string): { imponibile: string; iva: string } => {
+    const parseNum = (v: string): number | null => {
+      if (v == null) return null;
+      const n = Number(String(v).replace(',', '.'));
+      return Number.isFinite(n) ? n : null;
+    };
+    const importo = parseNum(importoStr);
+    const ali = parseNum(aliquotaStr);
+    if (docType !== 'fattura' || importo == null || ali == null) return { imponibile: '', iva: '' };
+    const imponibileVal = importo / (1 + ali / 100);
+    const ivaVal = importo - imponibileVal;
+    return { imponibile: imponibileVal.toFixed(2), iva: ivaVal.toFixed(2) };
+  };
   useEffect(() => {
     // reset form quando cambia commessa o tipo documento
     setForm(getInitialForm(docType));
   }, [commessaId, docType]);
+  const handleReset = () => { setForm(getInitialForm(docType)); setFornitoreQuery(''); };
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    const value = e.target.value;
+    setForm((prev) => {
+      const next = { ...prev, [field]: value } as typeof prev;
+      if (docType === 'fattura' && (field === 'importo_totale')) {
+        const { imponibile, iva } = computeDerived(String(next.importo_totale), String(next.aliquota_iva));
+        next.imponibile = imponibile;
+        next.iva = iva;
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async () => {
@@ -471,7 +515,46 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
         {docType === 'scontrini' ? (
           <>
             <Grid size={{ xs: 12, md: 5 }}>
-              <TextField label="Fornitore" InputLabelProps={{ shrink: true }} required fullWidth value={form.fornitore} onChange={handleChange('fornitore')} />
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={fornitori}
+                getOptionLabel={(o) => (typeof o === 'string' ? o : formatFornitoreLabel(o as FornitoreOption))}
+                filterOptions={(x) => x as FornitoreOption[]}
+                inputValue={form.fornitore}
+                onInputChange={(_, val) => {
+                  setFornitoreQuery(val || '');
+                  setForm((p) => ({ ...p, fornitore: val || '' }));
+                }}
+                onChange={(_, val) => {
+                  if (!val) return;
+                  if (typeof val === 'string') {
+                    const base = getInitialForm(docType);
+                    setForm({ ...base, fornitore: val });
+                    return;
+                  }
+                  const v = val as FornitoreOption;
+                  setForm(() => {
+                    const base = getInitialForm(docType);
+                    const rawAli = v.aliquota_iva_predefinita;
+                    const normalizedAli = rawAli != null && String(rawAli) !== '' && !Number.isNaN(Number(rawAli))
+                      ? String(Number(rawAli))
+                      : base.aliquota_iva;
+                    const derived = computeDerived(String(base.importo_totale), normalizedAli);
+                    return {
+                      ...base,
+                      fornitore: formatFornitoreLabel(v),
+                      tipologia: v.tipologia || base.tipologia,
+                      modalita_pagamento: v.mod_pagamento_pref || base.modalita_pagamento,
+                      aliquota_iva: normalizedAli,
+                      ...derived
+                    };
+                  });
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Fornitore" InputLabelProps={{ shrink: true }} required />
+                )}
+              />
             </Grid>
             <Grid size={{ xs: 12, md: 5 }}>
               <TextField label="Tipologia" InputLabelProps={{ shrink: true }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} />
@@ -486,7 +569,46 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
           <TextField label="N. Fattura" InputLabelProps={{ shrink: true }} required fullWidth value={form.numero_fattura} onChange={handleChange('numero_fattura')} />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
-          <TextField label="Fornitore" InputLabelProps={{ shrink: true }} required fullWidth value={form.fornitore} onChange={handleChange('fornitore')} />
+          <Autocomplete
+            fullWidth
+            freeSolo
+            options={fornitori}
+            getOptionLabel={(o) => (typeof o === 'string' ? o : formatFornitoreLabel(o as FornitoreOption))}
+            filterOptions={(x) => x as FornitoreOption[]}
+            inputValue={form.fornitore}
+            onInputChange={(_, val) => {
+              setFornitoreQuery(val || '');
+              setForm((p) => ({ ...p, fornitore: val || '' }));
+            }}
+            onChange={(_, val) => {
+              if (!val) return;
+              if (typeof val === 'string') {
+                const base = getInitialForm(docType);
+                setForm({ ...base, fornitore: val });
+                return;
+              }
+              const v = val as FornitoreOption;
+              setForm(() => {
+                const base = getInitialForm(docType);
+                const rawAli = v.aliquota_iva_predefinita;
+                const normalizedAli = rawAli != null && String(rawAli) !== '' && !Number.isNaN(Number(rawAli))
+                  ? String(Number(rawAli))
+                  : base.aliquota_iva;
+                const derived = computeDerived(String(base.importo_totale), normalizedAli);
+                return {
+                  ...base,
+                  fornitore: formatFornitoreLabel(v),
+                  tipologia: v.tipologia || base.tipologia,
+                  modalita_pagamento: v.mod_pagamento_pref || base.modalita_pagamento,
+                  aliquota_iva: normalizedAli,
+                  ...derived
+                };
+              });
+            }}
+            renderInput={(params) => (
+              <TextField {...params} label="Fornitore" InputLabelProps={{ shrink: true }} required />
+            )}
+          />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <TextField label="Tipologia" InputLabelProps={{ shrink: true }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} />
@@ -522,7 +644,11 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
           <FormControl fullWidth>
             <InputLabel id="aliquota-iva-label" shrink>Aliquota IVA</InputLabel>
             <Select labelId="aliquota-iva-label" label="Aliquota IVA" value={form.aliquota_iva}
-              onChange={(e) => setForm((p) => ({ ...p, aliquota_iva: String(e.target.value) }))}>
+              onChange={(e) => setForm((p) => {
+                const nextAli = String(e.target.value);
+                const { imponibile, iva } = computeDerived(String(p.importo_totale), nextAli);
+                return { ...p, aliquota_iva: nextAli, imponibile, iva };
+              })}>
               <MenuItem value="0">0%</MenuItem>
               <MenuItem value="4">4%</MenuItem>
               <MenuItem value="10">10%</MenuItem>
@@ -531,10 +657,10 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
           </FormControl>
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField type="number" label="Imponibile" InputLabelProps={{ shrink: true }} required fullWidth value={form.imponibile} onChange={handleChange('imponibile')} />
+          <TextField type="number" label="Imponibile" InputLabelProps={{ shrink: true }} required fullWidth value={form.imponibile} InputProps={{ readOnly: true }} />
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField type="number" label="IVA" InputLabelProps={{ shrink: true }} required fullWidth value={form.iva} onChange={handleChange('iva')} />
+          <TextField type="number" label="IVA" InputLabelProps={{ shrink: true }} required fullWidth value={form.iva} InputProps={{ readOnly: true }} />
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
           <TextField label={"Modalità di pagamento"} InputLabelProps={{ shrink: true }} fullWidth value={form.modalita_pagamento} onChange={handleChange('modalita_pagamento')} />
@@ -565,7 +691,8 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
         )}
       </Grid>
       <Divider sx={{ my: 2 }} />
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+        <Button variant="outlined" onClick={handleReset} disabled={saving}>Reset Campi</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={saving}>
           {saving ? 'Salvataggio…' : 'Salva Costo'}
         </Button>
@@ -577,6 +704,27 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
 type EntrataFormProps = { commessaId: string; onCreated?: () => void };
 function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
   const [saving, setSaving] = useState(false);
+  type ClienteOption = {
+    id?: number | string;
+    ragione_sociale?: string;
+    nome?: string;
+    cognome?: string;
+    tipologia?: string;
+    aliquota_iva_predefinita?: number | string | null;
+    mod_pagamento_pref?: string | null;
+  };
+  const [clienteQuery, setClienteQuery] = useState('');
+  const { data: clientiData } = useSWR('/api/tenants/clienti');
+  const formatClienteLabel = (c: ClienteOption): string =>
+    (c.ragione_sociale && c.ragione_sociale.trim())
+      ? c.ragione_sociale
+      : `${c.nome || ''} ${c.cognome || ''}`.trim();
+  const allClienti: ClienteOption[] = Array.isArray(clientiData) ? (clientiData as ClienteOption[]) : [];
+  const clienti: ClienteOption[] = (clienteQuery || '').trim() === ''
+    ? [...allClienti].sort((a, b) => (formatClienteLabel(a).localeCompare(formatClienteLabel(b), 'it', { sensitivity: 'base' })))
+    : allClienti
+        .filter((c) => formatClienteLabel(c).toLowerCase().includes(clienteQuery.toLowerCase()))
+        .sort((a, b) => (formatClienteLabel(a).localeCompare(formatClienteLabel(b), 'it', { sensitivity: 'base' })));
   const getInitialForm = () => ({
     cliente: '',
     tipologia: '',
@@ -592,9 +740,32 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
     tipologia_entrata: 'fattura'
   });
   const [form, setForm] = useState(getInitialForm());
+  const computeDerived = (importoStr: string, aliquotaStr: string): { imponibile: string; iva: string } => {
+    const parseNum = (v: string): number | null => {
+      if (v == null) return null;
+      const n = Number(String(v).replace(',', '.'));
+      return Number.isFinite(n) ? n : null;
+    };
+    const importo = parseNum(importoStr);
+    const ali = parseNum(aliquotaStr);
+    if (importo == null || ali == null) return { imponibile: '', iva: '' };
+    const imponibileVal = importo / (1 + ali / 100);
+    const ivaVal = importo - imponibileVal;
+    return { imponibile: imponibileVal.toFixed(2), iva: ivaVal.toFixed(2) };
+  };
+  const handleReset = () => { setForm(getInitialForm()); setClienteQuery(''); };
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    const value = e.target.value;
+    setForm((prev) => {
+      const next = { ...prev, [field]: value } as typeof prev;
+      if (field === 'importo_totale') {
+        const { imponibile, iva } = computeDerived(String(next.importo_totale), String(next.aliquota_iva));
+        next.imponibile = imponibile;
+        next.iva = iva;
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async () => {
@@ -618,7 +789,46 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
           <TextField label="N. Fattura" InputLabelProps={{ shrink: true }} required fullWidth value={form.numero_fattura} onChange={handleChange('numero_fattura')} />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
-          <TextField label="Cliente" InputLabelProps={{ shrink: true }} required fullWidth value={form.cliente} onChange={handleChange('cliente')} />
+          <Autocomplete
+            fullWidth
+            freeSolo
+            options={clienti}
+            getOptionLabel={(o) => (typeof o === 'string' ? o : formatClienteLabel(o as ClienteOption))}
+            filterOptions={(x) => x as ClienteOption[]}
+            inputValue={form.cliente}
+            onInputChange={(_, val) => {
+              setClienteQuery(val || '');
+              setForm((p) => ({ ...p, cliente: val || '' }));
+            }}
+            onChange={(_, val) => {
+              if (!val) return;
+              if (typeof val === 'string') {
+                const base = getInitialForm();
+                setForm({ ...base, cliente: val });
+                return;
+              }
+              const v = val as ClienteOption;
+              setForm(() => {
+                const base = getInitialForm();
+                const rawAli = v.aliquota_iva_predefinita;
+                const normalizedAli = rawAli != null && String(rawAli) !== '' && !Number.isNaN(Number(rawAli))
+                  ? String(Number(rawAli))
+                  : base.aliquota_iva;
+                const derived = computeDerived(String(base.importo_totale), normalizedAli);
+                return {
+                  ...base,
+                  cliente: formatClienteLabel(v),
+                  tipologia: v.tipologia || base.tipologia,
+                  modalita_pagamento: v.mod_pagamento_pref || base.modalita_pagamento,
+                  aliquota_iva: normalizedAli,
+                  ...derived
+                };
+              });
+            }}
+            renderInput={(params) => (
+              <TextField {...params} label="Cliente" InputLabelProps={{ shrink: true }} required />
+            )}
+          />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <TextField label="Tipologia" InputLabelProps={{ shrink: true }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} />
@@ -637,7 +847,11 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
           <FormControl fullWidth>
             <InputLabel id="aliquota-iva-entrate-label" shrink>Aliquota IVA</InputLabel>
             <Select labelId="aliquota-iva-entrate-label" label="Aliquota IVA" value={form.aliquota_iva}
-              onChange={(e) => setForm((p) => ({ ...p, aliquota_iva: String(e.target.value) }))}>
+              onChange={(e) => setForm((p) => {
+                const nextAli = String(e.target.value);
+                const { imponibile, iva } = computeDerived(String(p.importo_totale), nextAli);
+                return { ...p, aliquota_iva: nextAli, imponibile, iva };
+              })}>
               <MenuItem value="0">0%</MenuItem>
               <MenuItem value="4">4%</MenuItem>
               <MenuItem value="10">10%</MenuItem>
@@ -646,10 +860,10 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
           </FormControl>
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField type="number" label="Imponibile" InputLabelProps={{ shrink: true }} required fullWidth value={form.imponibile} onChange={handleChange('imponibile')} />
+          <TextField type="number" label="Imponibile" InputLabelProps={{ shrink: true }} required fullWidth value={form.imponibile} InputProps={{ readOnly: true }} />
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField type="number" label="IVA" InputLabelProps={{ shrink: true }} required fullWidth value={form.iva} onChange={handleChange('iva')} />
+          <TextField type="number" label="IVA" InputLabelProps={{ shrink: true }} required fullWidth value={form.iva} InputProps={{ readOnly: true }} />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField label={'Modalità di pagamento'} InputLabelProps={{ shrink: true }} fullWidth value={form.modalita_pagamento} onChange={handleChange('modalita_pagamento')} />
@@ -666,7 +880,8 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
         </Grid>
       </Grid>
       <Divider sx={{ my: 2 }} />
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+        <Button variant="outlined" onClick={handleReset} disabled={saving}>Reset Campi</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={saving}>
           {saving ? 'Salvataggio…' : 'Salva Ricavo'}
         </Button>
@@ -829,8 +1044,8 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
         </TableHead>
         <TableBody>
           {rows.map((r, idx) => (
-            <>
-            <TableRow key={`usc-${idx}`} hover>
+            <Fragment key={r.id ?? idx}>
+            <TableRow hover>
               {docType === 'fattura' && (
                 <TableCell sx={{ width: { md: '14%' } }}>{r.numero_fattura}</TableCell>
               )}
@@ -986,14 +1201,14 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
                 </IconButton>
               </TableCell>
             </TableRow>
-            <TableRow key={`usc-ex-${idx}`}>
+            <TableRow>
               <TableCell colSpan={docType === 'fattura' ? 8 : 7} sx={{ p: 0, border: 0 }}>
                 <Collapse in={Boolean(expandedUscite[r.id as string | number])} timeout="auto" unmountOnExit>
                   {renderUscitaDetails(r)}
                 </Collapse>
               </TableCell>
             </TableRow>
-            </>
+            </Fragment>
           ))}
           {rows.length === 0 && (
             <TableRow>

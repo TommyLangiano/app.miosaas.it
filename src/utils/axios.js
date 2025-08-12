@@ -44,7 +44,11 @@ axiosServices.interceptors.response.use(
     if (status === 401 && !window.location.href.includes('/login')) {
       window.location.pathname = '/login';
     }
-    return Promise.reject((error?.response && error.response.data) || error?.message || 'Wrong Services');
+    const payload = error?.response?.data;
+    const message =
+      (payload && typeof payload === 'object' && payload.message) ? payload.message :
+      (typeof payload === 'string' ? payload : (error?.message || 'Wrong Services'));
+    return Promise.reject(new Error(String(message)));
   }
 );
 
