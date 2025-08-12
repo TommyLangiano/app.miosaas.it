@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import axios from '../../../src/utils/axios';
+import { useSWR } from '../../../src/utils/swr';
 import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
@@ -30,7 +31,12 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 // icons
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
+import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
+import EuroRoundedIcon from '@mui/icons-material/EuroRounded';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import ArrowRightAltIcon from '@mui/icons-material/ArrowRightAlt';
+import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
 import { getCommessaCache, setCommessaCache } from '../../../src/utils/commesseCache';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
@@ -67,6 +73,20 @@ export default function CommessaDettaglioPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmName, setConfirmName] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // SWR: somma costi (uscite) e ricavi (entrate)
+  const { data: sumUsciteData } = useSWR(id ? `/api/tenants/uscite/sum?commessa_id=${encodeURIComponent(id)}` : null);
+  const { data: sumEntrateData } = useSWR(id ? `/api/tenants/entrate/sum?commessa_id=${encodeURIComponent(id)}` : null);
+  const totalCosti: number = Number(sumUsciteData?.total || sumUsciteData?.data?.total || 0);
+  const totImponibileCosti: number = Number(sumUsciteData?.imponibile || sumUsciteData?.data?.imponibile || 0);
+  const totIvaCosti: number = Number(sumUsciteData?.iva || sumUsciteData?.data?.iva || 0);
+  const totalRicavi: number = Number(sumEntrateData?.total || sumEntrateData?.data?.total || 0);
+  const totImponibileRicavi: number = Number(sumEntrateData?.imponibile || sumEntrateData?.data?.imponibile || 0);
+  const totIvaRicavi: number = Number(sumEntrateData?.iva || sumEntrateData?.data?.iva || 0);
+  const utileLordo: number = totImponibileRicavi - totImponibileCosti;
+  const ivaNet: number = totIvaRicavi - totIvaCosti; // (IVA Ricavi - IVA Costi)
+  const ivaLabel: 'IN COMPENSAZIONE' | 'DA VERSARE' | '' = ivaNet < 0 ? 'IN COMPENSAZIONE' : ivaNet > 0 ? 'DA VERSARE' : '';
+  const ivaPrefix: '' | '+' | '-' = ivaNet < 0 ? '+' : ivaNet > 0 ? '-' : '';
 
   useEffect(() => {
     const companyId = localStorage.getItem('company_id');
@@ -239,6 +259,25 @@ export default function CommessaDettaglioPage() {
 
   return (
     <>
+      {/* Torna indietro */}
+      <Box sx={{ mb: 1 }}>
+        <Button
+          size="small"
+          color="inherit"
+          startIcon={<ArrowBackIosNewRoundedIcon />}
+          onClick={() => router.push('/commesse')}
+          sx={(theme) => ({
+            px: 1,
+            textTransform: 'none',
+            color: theme.palette.text.secondary,
+            '&:hover': { bgcolor: theme.palette.action.hover }
+          })}
+        >
+          Torna a Commesse
+        </Button>
+      </Box>
+
+      {/* Stat cards spostate sotto il CardContent */}
       {updatedJustNow && (
         <Stack sx={{ mb: 1.5 }}>
           <Alert severity="success">Commessa aggiornata con successo.</Alert>
@@ -331,6 +370,8 @@ export default function CommessaDettaglioPage() {
               </Typography>
             </AccordionDetails>
           </Accordion>
+
+          {/* Stat cards rimosse dalla Card Content per spostarle fuori */}
           {/* Dialog eliminazione definitiva */}
           <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} fullWidth maxWidth="sm">
             <DialogTitle>Elimina commessa</DialogTitle>
@@ -379,6 +420,97 @@ export default function CommessaDettaglioPage() {
         </>
       )}
       </MainCard>
+
+      {/* Stat cards fuori dalla Card Content, posizionate sotto le info commessa */}
+      <Box sx={{ mt: 2, mb: 1.25, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
+        {/* Ricavi - Verde (da entrate) */}
+        <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#16a34a', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(22,163,74,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(22,163,74,0.35)' } }}>
+          <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
+            <Typography variant="subtitle1" color="common.white" sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3 }}>RICAVI</Typography>
+            <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
+              {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totalRicavi)}
+            </Typography>
+            <Box sx={{ mt: 1, mb: 0.5, height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.18, borderRadius: 1 }} />
+            <Box sx={{ textAlign: 'center', width: '100%', maxWidth: 560 }}>
+              <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
+                Imponibile: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totImponibileRicavi)}
+              </Typography>
+              <Box sx={{ my: 0.5, mx: 'auto', height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.12, borderRadius: 1 }} />
+              <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
+                IVA: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totIvaRicavi)}
+              </Typography>
+            </Box>
+          </Stack>
+          <ArrowUpwardRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
+        </Box>
+        {/* Costi - Rosso */}
+        <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#ef4444', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(239,68,68,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(239,68,68,0.35)' } }}>
+          <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
+            <Typography variant="subtitle1" color="common.white" sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3 }}>COSTI</Typography>
+            <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
+              {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totalCosti)}
+            </Typography>
+            <Box sx={{ mt: 1, mb: 0.75, height: 1, width: '70%', bgcolor: 'common.white', opacity: 0.2, borderRadius: 1 }} />
+            <Box sx={{ textAlign: 'center', width: '100%', maxWidth: 560 }}>
+              <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
+                Imponibile: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totImponibileCosti)}
+              </Typography>
+              <Box sx={{ my: 0.5, mx: 'auto', height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.12, borderRadius: 1 }} />
+              <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
+                IVA: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totIvaCosti)}
+              </Typography>
+            </Box>
+          </Stack>
+          <ArrowDownwardRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
+        </Box>
+        {/* Utile Lordo - Blu (Imp. Ricavi - Imp. Costi) */}
+        <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#1e3a8a', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(30,58,138,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(30,58,138,0.35)' } }}>
+          <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
+            <Typography variant="subtitle1" color="common.white" sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3 }}>UTILE LORDO</Typography>
+            <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
+              {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(utileLordo)}
+            </Typography>
+            <Box sx={{ mt: 1, mb: 0.5, height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.18, borderRadius: 1 }} />
+            <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.82rem', md: '0.9rem' }, opacity: 0.85 }}>
+              (Imp. Ricavi - Imp. Costi)
+            </Typography>
+          </Stack>
+          <EuroRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
+        </Box>
+        {/* IVA - Grigio chiaro (IVA Ricavi - IVA Costi) */}
+        <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#9ca3af', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(156,163,175,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(156,163,175,0.35)' } }}>
+          <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
+            <Stack alignItems="center" spacing={0} sx={{ lineHeight: 1 }}>
+              <Typography
+                variant="subtitle1"
+                color="common.white"
+                sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3, mb: 0 }}
+              >
+                IVA
+              </Typography>
+              {ivaLabel && (
+                <Typography
+                  variant="subtitle1"
+                  color="common.white"
+                  sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, mt: -0.25 }}
+                >
+                  {ivaLabel}
+                </Typography>
+              )}
+            </Stack>
+            <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
+              {`${ivaPrefix}${new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Math.abs(ivaNet))}`}
+            </Typography>
+            <Box sx={{ mt: 1, mb: 0.5, height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.18, borderRadius: 1 }} />
+            <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.82rem', md: '0.9rem' }, opacity: 0.85 }}>
+              (IVA Ricavi - IVA Costi)
+            </Typography>
+          </Stack>
+          <ReceiptLongRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
+        </Box>
+      </Box>
+
+      
     </>
   );
 }

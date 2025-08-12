@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSWR, defaultSWRConfig } from '../../src/utils/swr';
@@ -12,6 +12,8 @@ import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import { IconBriefcase } from '@tabler/icons-react';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
+import Chip from '@mui/material/Chip';
+import { alpha } from '@mui/material/styles';
  
 
   type CommessaRow = {
@@ -71,10 +73,64 @@ export default function CommessePage() {
   }, [searchParams, router]);
 
   // vista lista compatta: nessuno stato/valuta visualizzato
+  const [statusFilter, setStatusFilter] = useState<'all' | 'in_corso' | 'chiusa' | 'da_avviare'>('all');
+  const filteredRows = useMemo(() => {
+    if (statusFilter === 'all') return rows;
+    return rows.filter((r) => (r.stato || 'in_corso') === statusFilter);
+  }, [rows, statusFilter]);
+  const counts = useMemo(() => {
+    const c = { all: rows.length, in_corso: 0, chiusa: 0, da_avviare: 0 } as Record<string, number>;
+    rows.forEach((r) => { c[r.stato || 'in_corso'] = (c[r.stato || 'in_corso'] || 0) + 1; });
+    return c;
+  }, [rows]);
+
+  const statoChip = (s?: string) => {
+    const stato = (s || 'in_corso') as 'in_corso' | 'chiusa' | 'da_avviare';
+    const map = {
+      in_corso: { label: 'In corso', color: 'success' as const },
+      chiusa: { label: 'Chiusa', color: 'default' as const },
+      da_avviare: { label: 'Da avviare', color: 'warning' as const }
+    };
+    const cfg = map[stato] || map.in_corso;
+    return <Chip size="small" color={cfg.color} variant="outlined" label={cfg.label} sx={{ fontWeight: 600 }} />;
+  };
+
+  const accentColor = (s?: string) => {
+    const stato = (s || 'in_corso');
+    if (stato === 'chiusa') return '#9e9e9e';
+    if (stato === 'da_avviare') return '#ed6c02'; // warning.main
+    return '#2e7d32'; // success.dark-ish
+  };
 
   return (
     <>
-      <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Chip
+            label={`Tutte (${counts.all})`}
+            color={statusFilter === 'all' ? 'primary' : 'default'}
+            variant={statusFilter === 'all' ? 'filled' : 'outlined'}
+            onClick={() => setStatusFilter('all')}
+          />
+          <Chip
+            label={`In corso (${counts.in_corso || 0})`}
+            color={statusFilter === 'in_corso' ? 'success' : 'default'}
+            variant={statusFilter === 'in_corso' ? 'filled' : 'outlined'}
+            onClick={() => setStatusFilter('in_corso')}
+          />
+          <Chip
+            label={`Da avviare (${counts.da_avviare || 0})`}
+            color={statusFilter === 'da_avviare' ? 'warning' : 'default'}
+            variant={statusFilter === 'da_avviare' ? 'filled' : 'outlined'}
+            onClick={() => setStatusFilter('da_avviare')}
+          />
+          <Chip
+            label={`Chiuse (${counts.chiusa || 0})`}
+            color={statusFilter === 'chiusa' ? 'default' : 'default'}
+            variant={statusFilter === 'chiusa' ? 'filled' : 'outlined'}
+            onClick={() => setStatusFilter('chiusa')}
+          />
+        </Stack>
         <Button component={Link} href="/commesse/nuova" variant="contained" color="primary">
           Aggiungi Commessa
         </Button>
@@ -113,8 +169,8 @@ export default function CommessePage() {
       ) : error ? (
         <Typography color="error">{error}</Typography>
       ) : (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5 }}>
-          {rows.map((r) => {
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 1.5 }}>
+          {filteredRows.map((r) => {
             const codice = r.codice || '—';
             const nome = r.nome || '—';
             const citta = r.citta || '';
@@ -124,6 +180,7 @@ export default function CommessePage() {
             const indirizzo = [via, civico].filter(Boolean).join(' ').trim();
             const cityProvince = [citta, provincia].filter(Boolean).join(' ');
             const locationText = indirizzo && cityProvince ? `${indirizzo}, ${cityProvince}` : indirizzo || cityProvince || '—';
+            const acc = accentColor(r.stato);
             return (
             <Box
                 key={r.id}
@@ -137,23 +194,36 @@ export default function CommessePage() {
                   py: 1.5,
                   borderRadius: 1,
                   bgcolor: 'background.paper',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                  transition: 'transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    bottom: 0,
+                    left: 0,
+                    width: 4,
+                    backgroundColor: acc
+                  },
                   textDecoration: 'none',
                   color: 'inherit',
                   minHeight: 110,
-                  ':hover': { bgcolor: 'action.hover' }
+                  ':hover': { bgcolor: (theme) => alpha(theme.palette.primary.main, 0.02), transform: 'translateY(-2px)', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }
                 }}
                 component={Link}
                 href={`/commesse/${r.id}`}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ color: 'primary.main', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                  <Box sx={{ color: acc, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <IconBriefcase size={22} color="currentColor" />
                   </Box>
                   <Typography
                     variant="h6"
                     sx={{
                       fontSize: { xs: '1.2rem', sm: '1.35rem', md: '1.5rem' },
-                      fontWeight: 400,
+                      fontWeight: 500,
                       lineHeight: 1.2
                     }}
                   >
@@ -161,21 +231,23 @@ export default function CommessePage() {
                     {' - '}
                     <Box component="span" sx={{ fontWeight: 700 }}>{nome}</Box>
                   </Typography>
+                  <Box sx={{ ml: 'auto' }}>{statoChip(r.stato)}</Box>
                 </Box>
-                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ width: '100%' }}>
+                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ width: '100%', color: 'text.secondary' }}>
                   <LocationOnOutlinedIcon sx={{ color: 'primary.main', fontSize: { xs: 20, sm: 22 } }} />
                   <Typography
                     variant="body1"
-                    color="text.secondary"
+                    color="inherit"
                     sx={{ fontWeight: 400, fontSize: { xs: '0.95rem', sm: '1.05rem' } }}
                   >
                     {locationText}
                   </Typography>
                 </Stack>
+                {/* Meta info rimossa su richiesta: inizio, fine prevista, importo */}
               </Box>
             );
           })}
-          {rows.length === 0 && (
+          {filteredRows.length === 0 && (
             <Box sx={{ width: '100%' }}>
               <Typography>Nessuna commessa trovata.</Typography>
             </Box>

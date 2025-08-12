@@ -13,6 +13,9 @@ import Migration009NormalizeCommesseCliente from './009-normalize-commesse-clien
 import Migration010CreateUscite from './010-create-uscite';
 import Migration011UsciteCommessaToUuid from './011-uscite-commessa-to-uuid';
 import Migration012AddStatoUscita from './012-add-stato-uscita';
+import Migration013AddTipologiaUscita from './013-add-tipologia-uscita';
+import Migration014CreateEntrate from './014-create-entrate';
+import Migration015EntrateCommessaToUuid from './015-entrate-commessa-to-uuid';
 
 /**
  * Sistema di migrazioni per MioSaaS
@@ -30,7 +33,10 @@ class MigrationRunner {
     Migration009NormalizeCommesseCliente,
     Migration010CreateUscite,
     Migration011UsciteCommessaToUuid,
-    Migration012AddStatoUscita
+    Migration012AddStatoUscita,
+    Migration013AddTipologiaUscita,
+    Migration014CreateEntrate,
+    Migration015EntrateCommessaToUuid
   ];
 
   /**

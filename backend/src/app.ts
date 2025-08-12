@@ -11,6 +11,7 @@ import registerRoutes from './routes/register';
 import documentsRoutes from './routes/tenants/documents';
 import commesseRoutes from './routes/tenants/commesse';
 import usciteRoutes from './routes/tenants/uscite';
+import entrateRoutes from './routes/tenants/entrate';
 import testAuthRoutes from './routes/test-auth';
 import userManagementRoutes from './routes/user-management';
 import syncCognitoRoutes from './routes/sync-cognito';
@@ -170,6 +171,7 @@ class App {
     this.app.use('/api/tenants/documents', documentsRoutes);
     this.app.use('/api/tenants/commesse', commesseRoutes);
     this.app.use('/api/tenants/uscite', usciteRoutes);
+    this.app.use('/api/tenants/entrate', entrateRoutes);
     
     // 🧪 Test authentication routes (JWT ↔ DB testing)
     this.app.use('/api/test-auth', testAuthRoutes);
@@ -185,6 +187,7 @@ class App {
 
   private initializeErrorHandling(): void {
     // Global error handler
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     this.app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
       console.error('Global Error Handler:', error);
       

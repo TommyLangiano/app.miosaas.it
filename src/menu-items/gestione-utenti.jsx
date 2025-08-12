@@ -9,6 +9,13 @@ const amministrazione = {
   type: 'group',
   children: [
     {
+      id: 'anagrafica',
+      title: 'Anagrafica',
+      type: 'item',
+      url: '/anagrafica',
+      icon: IconUser
+    },
+    {
       id: 'gestione-utenti',
       title: 'Gestione Utenti',
       type: 'item',
