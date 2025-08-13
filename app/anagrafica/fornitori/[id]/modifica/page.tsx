@@ -13,7 +13,6 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import MenuItem from '@mui/material/MenuItem';
-import InputAdornment from '@mui/material/InputAdornment';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
@@ -87,7 +86,7 @@ export default function ModificaFornitorePage() {
           if (!Number.isNaN(n)) record.aliquota_iva_predefinita = n;
         }
         setForm(record);
-      } catch (e) {
+      } catch {
         setError('Impossibile caricare il fornitore');
       } finally {
         if (active) setLoading(false);
@@ -108,6 +107,22 @@ export default function ModificaFornitorePage() {
     setForm((prev) => ({ ...prev, so_diversa: checked }));
   };
 
+  // Nascondi/azzera sede operativa per PF
+  useEffect(() => {
+    if (form.forma_giuridica === 'PF' && form.so_diversa) {
+      setForm((prev) => ({
+        ...prev,
+        so_diversa: false,
+        via_so: '',
+        civico_so: '',
+        cap_so: '',
+        citta_so: '',
+        provincia_so: '',
+        nazione_so: ''
+      }));
+    }
+  }, [form.forma_giuridica, form.so_diversa]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -119,7 +134,7 @@ export default function ModificaFornitorePage() {
       await axios.put(`/api/tenants/fornitori/${id}`, form, { headers });
       enqueueSnackbar('Fornitore aggiornato con successo', { variant: 'success' });
       router.replace('/anagrafica?tab=fornitori');
-    } catch (err) {
+    } catch {
       setError('Errore nel salvataggio');
     } finally {
       setSaving(false);
@@ -199,21 +214,23 @@ export default function ModificaFornitorePage() {
               </SC>
             </Grid>
 
-            <Grid size={{ xs: 12 }}>
-              <SC title="Sede operativa (se diversa)">
-                <FormControlLabel control={<Checkbox checked={!!form.so_diversa} onChange={handleToggleSODiversa} />} label="La sede operativa è diversa" />
-                {form.so_diversa && (
-                  <Box sx={{ mt: 2, display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '2fr 1fr 1fr 1fr 1fr 1fr' } }}>
-                    <TextField name="via_so" label="Via_SO" value={form.via_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                    <TextField name="civico_so" label="Civico_SO" value={form.civico_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                    <TextField name="cap_so" label="CAP_SO" value={form.cap_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                    <TextField name="citta_so" label="Città_SO" value={form.citta_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                    <TextField name="provincia_so" label="Provincia_SO" value={form.provincia_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                    <TextField name="nazione_so" label="Nazione_SO" value={form.nazione_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                  </Box>
-                )}
-              </SC>
-            </Grid>
+            {isPG && (
+              <Grid size={{ xs: 12 }}>
+                <SC title="Sede operativa (se diversa)">
+                  <FormControlLabel control={<Checkbox checked={!!form.so_diversa} onChange={handleToggleSODiversa} />} label="La sede operativa è diversa" />
+                  {form.so_diversa && (
+                    <Box sx={{ mt: 2, display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '2fr 1fr 1fr 1fr 1fr 1fr' } }}>
+                      <TextField name="via_so" label="Via_SO" value={form.via_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                      <TextField name="civico_so" label="Civico_SO" value={form.civico_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                      <TextField name="cap_so" label="CAP_SO" value={form.cap_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                      <TextField name="citta_so" label="Città_SO" value={form.citta_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                      <TextField name="provincia_so" label="Provincia_SO" value={form.provincia_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                      <TextField name="nazione_so" label="Nazione_SO" value={form.nazione_so || ''} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                    </Box>
+                  )}
+                </SC>
+              </Grid>
+            )}
 
             <Grid size={{ xs: 12 }}>
               <SC title="Dati amministrativi">

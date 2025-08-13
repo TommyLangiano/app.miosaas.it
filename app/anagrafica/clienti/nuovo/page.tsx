@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ComponentType } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import axios from '../../../../src/utils/axios';
@@ -13,7 +13,6 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import MenuItem from '@mui/material/MenuItem';
-import InputAdornment from '@mui/material/InputAdornment';
 import Grid from '@mui/material/Grid';
 
 export default function NuovoClientePage() {
@@ -69,6 +68,22 @@ export default function NuovoClientePage() {
     const checked = e.target.checked;
     setForm((prev) => ({ ...prev, so_diversa: checked }));
   };
+
+  // Nascondi/azzera sede operativa per Persona Fisica
+  useEffect(() => {
+    if (form.forma_giuridica === 'PF' && form.so_diversa) {
+      setForm((prev) => ({
+        ...prev,
+        so_diversa: false,
+        via_so: '',
+        civico_so: '',
+        cap_so: '',
+        citta_so: '',
+        provincia_so: '',
+        nazione_so: ''
+      }));
+    }
+  }, [form.forma_giuridica, form.so_diversa]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,24 +189,26 @@ export default function NuovoClientePage() {
             </SC>
           </Grid>
 
-          <Grid size={{ xs: 12 }}>
-            <SC title="Sezione 5 – Indirizzo sede operativa (solo se diverso)">
-              <FormControlLabel control={<Checkbox checked={!!form.so_diversa} onChange={handleToggleSODiversa} />} label="La sede operativa è diversa" />
-              {form.so_diversa && (
-                <Box sx={{ mt: 2, display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '2fr 1fr 1fr 1fr 1fr 1fr' } }}>
-                  <TextField name="via_so" label="Via_SO" value={form.via_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                  <TextField name="civico_so" label="Civico_SO" value={form.civico_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                  <TextField name="cap_so" label="CAP_SO" value={form.cap_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                  <TextField name="citta_so" label="Città_SO" value={form.citta_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                  <TextField name="provincia_so" label="Provincia_SO" value={form.provincia_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                  <TextField name="nazione_so" label="Nazione_SO" value={form.nazione_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
-                </Box>
-              )}
-            </SC>
-          </Grid>
+          {isPG && (
+            <Grid size={{ xs: 12 }}>
+              <SC title="Sezione 5 – Indirizzo sede operativa (solo se diverso)">
+                <FormControlLabel control={<Checkbox checked={!!form.so_diversa} onChange={handleToggleSODiversa} />} label="La sede operativa è diversa" />
+                {form.so_diversa && (
+                  <Box sx={{ mt: 2, display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '2fr 1fr 1fr 1fr 1fr 1fr' } }}>
+                    <TextField name="via_so" label="Via_SO" value={form.via_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                    <TextField name="civico_so" label="Civico_SO" value={form.civico_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                    <TextField name="cap_so" label="CAP_SO" value={form.cap_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                    <TextField name="citta_so" label="Città_SO" value={form.citta_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                    <TextField name="provincia_so" label="Provincia_SO" value={form.provincia_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                    <TextField name="nazione_so" label="Nazione_SO" value={form.nazione_so} onChange={handleChange} InputLabelProps={{ shrink: true }} />
+                  </Box>
+                )}
+              </SC>
+            </Grid>
+          )}
 
           <Grid size={{ xs: 12 }}>
-            <SC title="Sezione 6 – Dati amministrativi">
+            <SC title={`Sezione ${isPF ? '5' : '6'} – Dati amministrativi`}>
               <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' } }}>
                 <TextField name="mod_pagamento_pref" label="Modalità di pagamento preferita" value={form.mod_pagamento_pref} onChange={handleChange} InputLabelProps={{ shrink: true }} />
                 <TextField name="iban" label="IBAN" value={form.iban} onChange={handleChange} InputLabelProps={{ shrink: true }} />
@@ -207,7 +224,7 @@ export default function NuovoClientePage() {
           </Grid>
 
           <Grid size={{ xs: 12 }}>
-            <SC title="Sezione 7 – Note e gestione interna">
+            <SC title={`Sezione ${isPF ? '6' : '7'} – Note e gestione interna`}>
               <TextField name="note" label="Note" value={form.note} onChange={handleChange} fullWidth multiline minRows={3} InputLabelProps={{ shrink: true }} />
             </SC>
           </Grid>

@@ -67,6 +67,39 @@ router.get('/sum', async (req: AuthedTenantRequest, res: Response): Promise<void
   }
 });
 
+// GET /api/tenants/uscite/check-numero-fattura?numero=...&commessa_id=UUID&exclude_id=ID
+router.get('/check-numero-fattura', async (req: AuthedTenantRequest, res: Response): Promise<void> => {
+  try {
+    const companyId = req.tenant!.companyId;
+    const numero = String((req.query.numero || '') as string).trim();
+    const commessaId = String((req.query.commessa_id || '') as string).trim();
+    const excludeIdRaw = String((req.query.exclude_id || '') as string).trim();
+    if (!numero) {
+      res.status(400).json({ status: 'error', message: "Parametro 'numero' mancante" });
+      return;
+    }
+    const params: unknown[] = [companyId, numero];
+    let idx = params.length + 1;
+    let sql = `SELECT 1 FROM uscite WHERE company_id = $1 AND numero_fattura = $2`;
+    if (commessaId) {
+      sql += ` AND commessa_id::text = $${idx}`;
+      params.push(commessaId);
+      idx++;
+    }
+    if (excludeIdRaw) {
+      sql += ` AND id::text <> $${idx}`;
+      params.push(excludeIdRaw);
+      idx++;
+    }
+    sql += ` LIMIT 1`;
+    const result = await req.db!.query(sql, params);
+    res.status(200).json({ status: 'success', data: { exists: (result.rowCount || 0) > 0 } });
+  } catch (error) {
+    console.error('Errore GET uscite check-numero-fattura:', error);
+    res.status(500).json({ status: 'error', message: 'Errore verifica numero fattura' });
+  }
+});
+
 // POST /api/tenants/uscite
 router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> => {
   try {

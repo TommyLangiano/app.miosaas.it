@@ -442,6 +442,9 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
     const importo = parseNum(importoStr);
     const ali = parseNum(aliquotaStr);
     if (docType !== 'fattura' || importo == null || ali == null) return { imponibile: '', iva: '' };
+    if (ali === 0) {
+      return { imponibile: Number(importo).toFixed(2), iva: '0.00' };
+    }
     const imponibileVal = importo / (1 + ali / 100);
     const ivaVal = importo - imponibileVal;
     return { imponibile: imponibileVal.toFixed(2), iva: ivaVal.toFixed(2) };
@@ -481,20 +484,40 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
       const newErrors: Record<string, string> = {};
       if (docType === 'fattura') {
         if (!form.numero_fattura?.trim()) newErrors['numero_fattura'] = 'Campo obbligatorio';
+        if (form.numero_fattura?.trim() && !/^[A-Za-z0-9\-\/]+$/.test(form.numero_fattura.trim())) newErrors['numero_fattura'] = 'Formato non valido';
         if (!form.fornitore?.trim()) newErrors['fornitore'] = 'Campo obbligatorio';
         if (!form.tipologia?.trim()) newErrors['tipologia'] = 'Campo obbligatorio';
+        if (form.tipologia && form.tipologia.trim().length < 3) newErrors['tipologia'] = 'Minimo 3 caratteri';
         if (!form.emissione_fattura?.trim()) newErrors['emissione_fattura'] = 'Campo obbligatorio';
         if (!form.data_pagamento?.trim()) newErrors['data_pagamento'] = 'Campo obbligatorio';
         if (!String(form.importo_totale).trim()) newErrors['importo_totale'] = 'Campo obbligatorio';
+        if (Number(String(form.importo_totale).replace(',', '.')) <= 0) newErrors['importo_totale'] = 'Deve essere ≥ 0,01';
         if (String(form.aliquota_iva) === '') newErrors['aliquota_iva'] = 'Campo obbligatorio';
+        if (String(form.aliquota_iva) !== '' && ![0,4,10,22].includes(Number(form.aliquota_iva))) newErrors['aliquota_iva'] = 'Valore non valido';
         if (!form.stato_uscita?.trim()) newErrors['stato_uscita'] = 'Campo obbligatorio';
       } else {
         // scontrini: minimo richiesto importo e data + fornitore?
         if (!form.fornitore?.trim()) newErrors['fornitore'] = 'Campo obbligatorio';
         if (!form.tipologia?.trim()) newErrors['tipologia'] = 'Campo obbligatorio';
+        if (form.tipologia && form.tipologia.trim().length < 3) newErrors['tipologia'] = 'Minimo 3 caratteri';
         if (!String(form.importo_totale).trim()) newErrors['importo_totale'] = 'Campo obbligatorio';
+        if (Number(String(form.importo_totale).replace(',', '.')) <= 0) newErrors['importo_totale'] = 'Deve essere ≥ 0,01';
         if (!form.data_pagamento?.trim()) newErrors['data_pagamento'] = 'Campo obbligatorio';
       }
+
+      // Consistenza selezione Autocomplete: consentiamo input manuale, nessun vincolo sulla selezione dalla lista
+
+      // Coerenza date: pagamento ≥ emissione, range plausibile
+      const toDate = (s: string | undefined) => (s ? new Date(s) : null);
+      const dEm = toDate(form.emissione_fattura);
+      const dPg = toDate(form.data_pagamento);
+      const now = new Date();
+      const tenYears = 10 * 365 * 24 * 60 * 60 * 1000;
+      const minDate = new Date('2000-01-01');
+      if (docType === 'fattura' && dEm && dPg && dPg < dEm) newErrors['data_pagamento'] = 'Pagamento prima dell\'emissione';
+      if (dEm && (dEm.getTime() > now.getTime() + tenYears || dEm < minDate)) newErrors['emissione_fattura'] = 'Data non plausibile';
+      if (dPg && (dPg.getTime() > now.getTime() + tenYears || dPg < minDate)) newErrors['data_pagamento'] = 'Data non plausibile';
+
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
         const order = docType === 'fattura'
@@ -515,7 +538,15 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
         setSaving(false);
         return;
       }
-      const payload = { ...form, commessa_id: commessaId, tipologia_uscita: docType } as Record<string, unknown>;
+      // Forza arrotondamenti/coerenza importi (fatture)
+      const imp = Number(String(form.importo_totale || '').replace(',', '.'));
+      const ali = Number(String(form.aliquota_iva || '').replace(',', '.')) || 0;
+      let payload = { ...form, commessa_id: commessaId, tipologia_uscita: docType } as Record<string, unknown>;
+      if (docType === 'fattura') {
+        const impon = Number((imp / (1 + ali / 100)).toFixed(2));
+        const iva = Number((imp - impon).toFixed(2));
+        payload = { ...payload, importo_totale: Number(imp.toFixed(2)), imponibile: impon, iva };
+      }
       if (docType === 'scontrini') {
         (payload as Record<string, unknown>).stato_uscita = 'Pagato';
       }
@@ -523,6 +554,8 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
       setForm({
         ...getInitialForm(docType)
       });
+      setFornitoreQuery('');
+      setSelectedFornitore(null);
       if (onCreated) onCreated();
     } catch {
       // noop
@@ -540,7 +573,7 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
         {docType === 'scontrini' ? (
           <>
             <Grid size={{ xs: 12, md: 5 }}>
-              <Autocomplete
+              <Autocomplete<FornitoreOption, false, false, true>
                 fullWidth
                 freeSolo
                 options={fornitori}
@@ -548,7 +581,13 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
                 filterOptions={(x) => x as FornitoreOption[]}
                 inputValue={fornitoreQuery}
                 value={selectedFornitore}
-                onInputChange={(_, val) => { setFornitoreQuery(val || ''); if (val) setErrors((prev) => ({ ...prev, fornitore: '' })); }}
+                onInputChange={(_, val) => {
+                  const text = val || '';
+                  setFornitoreQuery(text);
+                  setSelectedFornitore(text ? text : null);
+                  setForm((p) => ({ ...p, fornitore: text }));
+                  if (text) setErrors((prev) => ({ ...prev, fornitore: '' }));
+                }}
                 onChange={(_, val) => {
                   if (!val) {
                     // clear fornitore and related prefilled fields
@@ -621,7 +660,13 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
             filterOptions={(x) => x as FornitoreOption[]}
             inputValue={fornitoreQuery}
             value={selectedFornitore}
-            onInputChange={(_, val) => { setFornitoreQuery(val || ''); if (val) setErrors((prev) => ({ ...prev, fornitore: '' })); }}
+            onInputChange={(_, val) => {
+              const text = val || '';
+              setFornitoreQuery(text);
+              setSelectedFornitore(text ? text : null);
+              setForm((p) => ({ ...p, fornitore: text }));
+              if (text) setErrors((prev) => ({ ...prev, fornitore: '' }));
+            }}
             onChange={(_, val) => {
               if (!val) {
                 setFornitoreQuery('');
@@ -822,8 +867,8 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
     const imp = parseNum(imponibileStr);
     const ali = parseNum(aliquotaStr);
     if (imp == null || ali == null) return { iva: '', importo_totale: '' };
-    // Richiesta: IVA = Imponibile * (1 + Aliquota/100); Importo Totale = Imponibile + IVA
-    const ivaVal = imp * (1 + ali / 100);
+    // Corretto: IVA = Imponibile * (Aliquota/100); Totale = Imponibile + IVA
+    const ivaVal = imp * (ali / 100);
     const totaleVal = imp + ivaVal;
     return { iva: ivaVal.toFixed(2), importo_totale: totaleVal.toFixed(2) };
   };
@@ -884,6 +929,8 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
       const payload = { ...form, commessa_id: commessaId } as Record<string, unknown>;
       await axios.post('/api/tenants/entrate', payload);
       setForm(getInitialForm());
+      setClienteQuery('');
+      setSelectedCliente(null);
       if (onCreated) onCreated();
     } catch {
       // noop
@@ -908,7 +955,11 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
             inputValue={clienteQuery}
             value={selectedCliente}
             onInputChange={(_, val) => {
-              setClienteQuery(val || '');
+              const text = val || '';
+              setClienteQuery(text);
+              setSelectedCliente(text ? text : null);
+              setForm((p) => ({ ...p, cliente: text }));
+              if (text) setErrors((prev) => ({ ...prev, cliente: '' }));
             }}
             onChange={(_, val) => {
               if (!val) {
@@ -1073,6 +1124,38 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | number | null>(null);
   const [confirmDeleting, setConfirmDeleting] = useState(false);
   const [confirmDeleteLabel, setConfirmDeleteLabel] = useState<string>('');
+  // Dati fornitori per Autocomplete in modifica
+  type FornitoreOption = {
+    id?: string | number;
+    ragione_sociale?: string;
+    nome?: string;
+    cognome?: string;
+    tipologia?: string;
+    aliquota_iva_predefinita?: number | string | null;
+    mod_pagamento_pref?: string | null;
+  };
+  const { data: fornitoriData } = useSWR('/api/tenants/fornitori');
+  const formatFornitoreLabel = (f: FornitoreOption): string =>
+    (f.ragione_sociale && f.ragione_sociale.trim())
+      ? f.ragione_sociale
+      : `${f.nome || ''} ${f.cognome || ''}`.trim();
+  const allFornitori: FornitoreOption[] = Array.isArray(fornitoriData) ? (fornitoriData as FornitoreOption[]) : [];
+  const fornitori: FornitoreOption[] = [...allFornitori].sort((a, b) => (formatFornitoreLabel(a).localeCompare(formatFornitoreLabel(b), 'it', { sensitivity: 'base' })));
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const computeDerivedEdit = (importoStr: string | number | undefined, aliquotaStr: string | number | undefined): { imponibile: string; iva: string } => {
+    const parseNum = (v: string | number | undefined): number | null => {
+      if (v == null) return null;
+      const n = Number(String(v).replace(',', '.'));
+      return Number.isFinite(n) ? n : null;
+    };
+    const imp = parseNum(importoStr as string);
+    const ali = parseNum(aliquotaStr as string);
+    if (imp == null || ali == null) return { imponibile: '', iva: '' };
+    if (ali === 0) return { imponibile: Number(imp).toFixed(2), iva: '0.00' };
+    const imponibileVal = imp / (1 + ali / 100);
+    const ivaVal = imp - imponibileVal;
+    return { imponibile: imponibileVal.toFixed(2), iva: ivaVal.toFixed(2) };
+  };
   // const [statoMenuAnchorEl, setStatoMenuAnchorEl] = useState<null | HTMLElement>(null);
   // const [statoMenuRowId, setStatoMenuRowId] = useState<string | number | null>(null);
 
@@ -1400,7 +1483,46 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
               </Grid>
             )}
             <Grid size={{ xs: 12, md: docType === 'fattura' ? 5 : 6 }}>
-              <TextField label="Fornitore" fullWidth value={editData.fornitore || ''} onChange={(e) => setEditData((p) => ({ ...p, fornitore: e.target.value }))} InputLabelProps={{ shrink: true }} />
+              <Autocomplete
+                fullWidth
+                freeSolo
+                options={fornitori}
+                getOptionLabel={(o) => (typeof o === 'string' ? o : formatFornitoreLabel(o as FornitoreOption))}
+                filterOptions={(x) => x as FornitoreOption[]}
+                inputValue={String(editData.fornitore || '')}
+                value={editData.fornitore || ''}
+                onInputChange={(_, val) => {
+                  const text = val || '';
+                  setEditData((p) => ({ ...p, fornitore: text }));
+                  if (text) setEditErrors((prev) => ({ ...prev, fornitore: '' }));
+                }}
+                onChange={(_, val) => {
+                  if (!val) {
+                    setEditData((p) => ({ ...p, fornitore: '' }));
+                    return;
+                  }
+                  if (typeof val === 'string') {
+                    setEditData((p) => ({ ...p, fornitore: val }));
+                    return;
+                  }
+                  const v = val as FornitoreOption;
+                  setEditData((p) => {
+                    const rawAli = v.aliquota_iva_predefinita;
+                    const normalizedAli = rawAli != null && String(rawAli) !== '' && !Number.isNaN(Number(rawAli)) ? Number(rawAli) : (p.aliquota_iva as number | undefined);
+                    let next: typeof p = { ...p, fornitore: formatFornitoreLabel(v) };
+                    if (normalizedAli != null) {
+                      const { imponibile, iva } = computeDerivedEdit(p.importo_totale as number | string | undefined, normalizedAli);
+                      next = { ...next, aliquota_iva: normalizedAli, imponibile: Number(imponibile) as unknown as number, iva: Number(iva) as unknown as number };
+                    }
+                    if (v.mod_pagamento_pref) next = { ...next, modalita_pagamento: v.mod_pagamento_pref };
+                    if (v.tipologia) next = { ...next, tipologia: v.tipologia };
+                    return next;
+                  });
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Fornitore" fullWidth error={Boolean(editErrors['fornitore'])} helperText={editErrors['fornitore'] || ''} InputLabelProps={{ shrink: true }} />
+                )}
+              />
             </Grid>
             <Grid size={{ xs: 12, md: docType === 'fattura' ? 4 : 6 }}>
               <TextField label="Tipologia" fullWidth value={editData.tipologia || ''} onChange={(e) => setEditData((p) => ({ ...p, tipologia: e.target.value }))} InputLabelProps={{ shrink: true }} />
@@ -1414,14 +1536,28 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
               <TextField type="date" label="Data Pagamento" fullWidth value={editData.data_pagamento ? String(editData.data_pagamento).slice(0,10) : ''} onChange={(e) => setEditData((p) => ({ ...p, data_pagamento: e.target.value }))} InputLabelProps={{ shrink: true }} />
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}>
-              <TextField type="number" label="Importo Totale" fullWidth value={editData.importo_totale ?? ''} onChange={(e) => setEditData((p) => ({ ...p, importo_totale: e.target.value as unknown as number }))} InputLabelProps={{ shrink: true }} />
+              <TextField type="number" label="Importo Totale" fullWidth value={editData.importo_totale ?? ''} onChange={(e) => {
+                const val = e.target.value;
+                setEditData((p) => {
+                  const next = { ...p, importo_totale: val as unknown as number };
+                  if (docType === 'fattura') {
+                    const { imponibile, iva } = computeDerivedEdit(val, p.aliquota_iva as number | string | undefined);
+                    return { ...next, imponibile: Number(imponibile) as unknown as number, iva: Number(iva) as unknown as number };
+                  }
+                  return next;
+                });
+              }} InputLabelProps={{ shrink: true }} />
             </Grid>
             {docType === 'fattura' && (
               <>
                 <Grid size={{ xs: 12, md: 2 }}>
                   <FormControl fullWidth>
                     <InputLabel id="aliquota-iva-uscite-edit" shrink>Aliquota IVA</InputLabel>
-                    <Select labelId="aliquota-iva-uscite-edit" label="Aliquota IVA" value={String(editData.aliquota_iva ?? '')} onChange={(e) => setEditData((p) => ({ ...p, aliquota_iva: Number(e.target.value) }))}>
+                    <Select labelId="aliquota-iva-uscite-edit" label="Aliquota IVA" value={String(editData.aliquota_iva ?? '')} onChange={(e) => setEditData((p) => {
+                      const ali = Number(e.target.value);
+                      const { imponibile, iva } = computeDerivedEdit(p.importo_totale as number | string | undefined, ali);
+                      return { ...p, aliquota_iva: ali, imponibile: Number(imponibile) as unknown as number, iva: Number(iva) as unknown as number };
+                    })}>
                       <MenuItem value="0">0%</MenuItem>
                       <MenuItem value="4">4%</MenuItem>
                       <MenuItem value="10">10%</MenuItem>
@@ -1475,6 +1611,26 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
             onClick={async () => {
               try {
                 setSavingEdit(true);
+                const newErrors: Record<string, string> = {};
+                if (docType === 'fattura') {
+                  if (!String(editData.fornitore || '').trim()) newErrors['fornitore'] = 'Campo obbligatorio';
+                  if (!String(editData.tipologia || '').trim()) newErrors['tipologia'] = 'Campo obbligatorio';
+                  if (!String(editData.emissione_fattura || '').trim()) newErrors['emissione_fattura'] = 'Campo obbligatorio';
+                  if (!String(editData.data_pagamento || '').trim()) newErrors['data_pagamento'] = 'Campo obbligatorio';
+                  const imp = Number(String(editData.importo_totale ?? '').replace(',', '.'));
+                  if (!String(editData.importo_totale ?? '').trim()) newErrors['importo_totale'] = 'Campo obbligatorio';
+                  if (Number.isFinite(imp) && imp <= 0) newErrors['importo_totale'] = 'Deve essere ≥ 0,01';
+                  if (String(editData.aliquota_iva ?? '') === '') newErrors['aliquota_iva'] = 'Campo obbligatorio';
+                  if (String(editData.aliquota_iva ?? '') !== '' && ![0,4,10,22].includes(Number(editData.aliquota_iva))) newErrors['aliquota_iva'] = 'Valore non valido';
+                } else {
+                  if (!String(editData.fornitore || '').trim()) newErrors['fornitore'] = 'Campo obbligatorio';
+                  if (!String(editData.tipologia || '').trim()) newErrors['tipologia'] = 'Campo obbligatorio';
+                  const imp = Number(String(editData.importo_totale ?? '').replace(',', '.'));
+                  if (!String(editData.importo_totale ?? '').trim()) newErrors['importo_totale'] = 'Campo obbligatorio';
+                  if (Number.isFinite(imp) && imp <= 0) newErrors['importo_totale'] = 'Deve essere ≥ 0,01';
+                  if (!String(editData.data_pagamento || '').trim()) newErrors['data_pagamento'] = 'Campo obbligatorio';
+                }
+                if (Object.keys(newErrors).length > 0) { setEditErrors(newErrors); return; }
                 const payload: Record<string, unknown> = {};
                 if (editData.numero_fattura !== undefined) payload.numero_fattura = editData.numero_fattura;
                 if (editData.fornitore !== undefined) payload.fornitore = editData.fornitore;
@@ -1553,6 +1709,37 @@ function EntrateTable({ commessaId, version }: { commessaId: string; version: nu
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | number | null>(null);
   const [confirmDeleting, setConfirmDeleting] = useState(false);
   const [confirmDeleteLabel, setConfirmDeleteLabel] = useState<string>('');
+  // Autocomplete clienti e ricalcoli/validazioni per dialog modifica ricavo
+  type ClienteEditOption = {
+    id?: string | number;
+    ragione_sociale?: string;
+    nome?: string;
+    cognome?: string;
+    tipologia?: string;
+    aliquota_iva_predefinita?: number | string | null;
+    mod_pagamento_pref?: string | null;
+  };
+  const { data: clientiData } = useSWR('/api/tenants/clienti');
+  const formatClienteEditLabel = (c: ClienteEditOption): string =>
+    (c.ragione_sociale && c.ragione_sociale.trim())
+      ? c.ragione_sociale
+      : `${c.nome || ''} ${c.cognome || ''}`.trim();
+  const allClientiEdit: ClienteEditOption[] = Array.isArray(clientiData) ? (clientiData as ClienteEditOption[]) : [];
+  const clientiEdit: ClienteEditOption[] = [...allClientiEdit].sort((a, b) => (formatClienteEditLabel(a).localeCompare(formatClienteEditLabel(b), 'it', { sensitivity: 'base' })));
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const computeFromImponibileEdit = (imponibileStr: string | number | undefined, aliquotaStr: string | number | undefined): { iva: string; importo_totale: string } => {
+    const parseNum = (v: string | number | undefined): number | null => {
+      if (v == null) return null;
+      const n = Number(String(v).replace(',', '.'));
+      return Number.isFinite(n) ? n : null;
+    };
+    const imp = parseNum(imponibileStr);
+    const ali = parseNum(aliquotaStr);
+    if (imp == null || ali == null) return { iva: '', importo_totale: '' };
+    const ivaVal = imp * (ali / 100);
+    const totaleVal = imp + ivaVal;
+    return { iva: ivaVal.toFixed(2), importo_totale: totaleVal.toFixed(2) };
+  };
 
   const rows: EntrataRow[] = Array.isArray(data) ? (data as EntrataRow[]) : [];
   const formatEuro = (value?: number) => {
@@ -1834,7 +2021,38 @@ function EntrateTable({ commessaId, version }: { commessaId: string; version: nu
               <TextField label="N. Fattura" fullWidth value={editData.numero_fattura || ''} onChange={(e) => setEditData((p) => ({ ...p, numero_fattura: e.target.value }))} InputLabelProps={{ shrink: true }} />
             </Grid>
             <Grid size={{ xs: 12, md: 5 }}>
-              <TextField label="Cliente" fullWidth value={editData.cliente || ''} onChange={(e) => setEditData((p) => ({ ...p, cliente: e.target.value }))} InputLabelProps={{ shrink: true }} />
+              <Autocomplete<ClienteEditOption, false, false, true>
+                fullWidth
+                freeSolo
+                options={clientiEdit}
+                getOptionLabel={(o) => (typeof o === 'string' ? o : formatClienteEditLabel(o as ClienteEditOption))}
+                filterOptions={(x) => x as ClienteEditOption[]}
+                inputValue={String(editData.cliente || '')}
+                value={editData.cliente || ''}
+                onInputChange={(_, val) => {
+                  const text = val || '';
+                  setEditData((p) => ({ ...p, cliente: text }));
+                  if (text) setEditErrors((prev) => ({ ...prev, cliente: '' }));
+                }}
+                onChange={(_, val) => {
+                  if (!val) { setEditData((p) => ({ ...p, cliente: '' })); return; }
+                  if (typeof val === 'string') { setEditData((p) => ({ ...p, cliente: val })); return; }
+                  const v = val as ClienteEditOption;
+                  setEditData((p) => {
+                    const baseNext = { ...p, cliente: formatClienteEditLabel(v), tipologia: v.tipologia || p.tipologia, modalita_pagamento: v.mod_pagamento_pref || p.modalita_pagamento } as typeof p;
+                    const rawAli = v.aliquota_iva_predefinita;
+                    if (rawAli != null && String(rawAli) !== '' && !Number.isNaN(Number(rawAli))) {
+                      const ali = Number(rawAli);
+                      const { iva, importo_totale } = computeFromImponibileEdit(p.imponibile as number | string | undefined, ali);
+                      return { ...baseNext, aliquota_iva: ali, iva: Number(iva) as unknown as number, importo_totale: Number(importo_totale) as unknown as number };
+                    }
+                    return baseNext;
+                  });
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Cliente" fullWidth error={Boolean(editErrors['cliente'])} helperText={editErrors['cliente'] || ''} InputLabelProps={{ shrink: true }} />
+                )}
+              />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField label="Tipologia" fullWidth value={editData.tipologia || ''} onChange={(e) => setEditData((p) => ({ ...p, tipologia: e.target.value }))} InputLabelProps={{ shrink: true }} />
@@ -1853,16 +2071,27 @@ function EntrateTable({ commessaId, version }: { commessaId: string; version: nu
             <Grid size={{ xs: 12, md: 3 }}>
               <FormControl fullWidth>
                 <InputLabel id="aliquota-iva-entrate-edit" shrink>Aliquota IVA</InputLabel>
-                <Select labelId="aliquota-iva-entrate-edit" label="Aliquota IVA" value={String(editData.aliquota_iva ?? '')} onChange={(e) => setEditData((p) => ({ ...p, aliquota_iva: Number(e.target.value) }))}>
-                  <MenuItem value="0">0%</MenuItem>
-                  <MenuItem value="4">4%</MenuItem>
-                  <MenuItem value="10">10%</MenuItem>
-                  <MenuItem value="22">22%</MenuItem>
+                <Select labelId="aliquota-iva-entrate-edit" label="Aliquota IVA" value={editData.aliquota_iva ?? ''} onChange={(e) => setEditData((p) => {
+                  const ali = Number(e.target.value);
+                  const { iva, importo_totale } = computeFromImponibileEdit(p.imponibile as number | string | undefined, ali);
+                  return { ...p, aliquota_iva: ali, iva: Number(iva) as unknown as number, importo_totale: Number(importo_totale) as unknown as number };
+                })}>
+                  <MenuItem value={0}>0%</MenuItem>
+                  <MenuItem value={4}>4%</MenuItem>
+                  <MenuItem value={10}>10%</MenuItem>
+                  <MenuItem value={22}>22%</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}>
-              <TextField type="number" label="Imponibile" fullWidth value={editData.imponibile ?? ''} onChange={(e) => setEditData((p) => ({ ...p, imponibile: e.target.value as unknown as number }))} InputLabelProps={{ shrink: true }} />
+              <TextField type="number" label="Imponibile" fullWidth value={editData.imponibile ?? ''} onChange={(e) => {
+                const val = e.target.value;
+                setEditData((p) => {
+                  const next = { ...p, imponibile: val as unknown as number };
+                  const { iva, importo_totale } = computeFromImponibileEdit(val, p.aliquota_iva as number | string | undefined);
+                  return { ...next, iva: Number(iva) as unknown as number, importo_totale: Number(importo_totale) as unknown as number };
+                });
+              }} InputLabelProps={{ shrink: true }} />
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}>
               <TextField type="number" label="IVA" fullWidth value={editData.iva ?? ''} onChange={(e) => setEditData((p) => ({ ...p, iva: e.target.value as unknown as number }))} InputLabelProps={{ shrink: true }} />
@@ -1890,6 +2119,15 @@ function EntrateTable({ commessaId, version }: { commessaId: string; version: nu
             onClick={async () => {
               try {
                 setSavingEdit(true);
+                const newErrors: Record<string, string> = {};
+                if (!String(editData.numero_fattura || '').trim()) newErrors['numero_fattura'] = 'Campo obbligatorio';
+                if (!String(editData.cliente || '').trim()) newErrors['cliente'] = 'Campo obbligatorio';
+                if (!String(editData.tipologia || '').trim()) newErrors['tipologia'] = 'Campo obbligatorio';
+                if (!String(editData.emissione_fattura || '').trim()) newErrors['emissione_fattura'] = 'Campo obbligatorio';
+                if (!String(editData.data_pagamento || '').trim()) newErrors['data_pagamento'] = 'Campo obbligatorio';
+                if (!String(editData.imponibile ?? '').trim()) newErrors['imponibile'] = 'Campo obbligatorio';
+                if (String(editData.aliquota_iva ?? '') === '') newErrors['aliquota_iva'] = 'Campo obbligatorio';
+                if (Object.keys(newErrors).length > 0) { setEditErrors(newErrors); return; }
                 const payload: Record<string, unknown> = {};
                 if (editData.cliente !== undefined) payload.cliente = editData.cliente;
                 if (editData.tipologia !== undefined) payload.tipologia = editData.tipologia;
