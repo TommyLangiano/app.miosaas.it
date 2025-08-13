@@ -20,7 +20,7 @@ import DialogActions from '@mui/material/DialogActions';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
 import Menu from '@mui/material/Menu';
-import Grid from '@mui/material/Unstable_Grid2';
+import Grid from '@mui/material/Grid';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import axios from '../../src/utils/axios';
