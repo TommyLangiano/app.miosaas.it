@@ -20,7 +20,7 @@ import DialogActions from '@mui/material/DialogActions';
 import FormControl from '@mui/material/FormControl';
 import MenuItem from '@mui/material/MenuItem';
 import Menu from '@mui/material/Menu';
-import Grid from '@mui/material/Grid';
+import Grid from '@mui/material/Unstable_Grid2';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import axios from '../../src/utils/axios';
@@ -1055,7 +1055,7 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
       variant: severity,
       autoHideDuration: 3000,
       anchorOrigin: { vertical: 'top', horizontal: 'right' },
-      action: (key) => (
+      action: (key: string | number) => (
         <IconButton size="small" aria-label="Chiudi" onClick={() => closeSnackbar(key)} sx={{ color: 'inherit' }}>
           <CloseIcon fontSize="small" />
         </IconButton>
