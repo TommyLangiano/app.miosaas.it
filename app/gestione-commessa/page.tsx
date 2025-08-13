@@ -41,6 +41,7 @@ import Collapse from '@mui/material/Collapse';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import { enqueueSnackbar, closeSnackbar } from 'notistack';
+import UploadFileRoundedIcon from '@mui/icons-material/UploadFileRounded';
 
 type MainCardProps = { title?: React.ReactNode; children?: React.ReactNode; headerSX?: SxProps<Theme>; contentSX?: SxProps<Theme>; [key: string]: unknown };
 const MainCard = MainCardDefault as unknown as React.ComponentType<MainCardProps>;
@@ -738,6 +739,27 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField label="Stato" InputLabelProps={{ shrink: true }} fullWidth value={'Pagato'} disabled />
             </Grid>
+            <Grid size={{ xs: 12, md: 12 }}>
+              <Box
+                sx={{
+                  mt: 1,
+                  p: 3,
+                  border: '2px dashed',
+                  borderColor: (theme: Theme) => alpha(theme.palette.grey[400], 0.6),
+                  bgcolor: (theme: Theme) => alpha(theme.palette.grey[400], 0.12),
+                  borderRadius: 2,
+                  textAlign: 'center',
+                  color: 'text.secondary',
+                  cursor: 'not-allowed'
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 0.5 }}>
+                  <UploadFileRoundedIcon color="action" />
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>Trascina qui il file oppure clicca per selezionarlo</Typography>
+                </Stack>
+                <Typography variant="caption">(Mock visivo - caricamento non attivo) • Puoi caricare un solo file JPG/PNG/PDF</Typography>
+              </Box>
+            </Grid>
           </>
         ) : (
           <>
@@ -801,6 +823,27 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
             </Select>
             {errors['stato_uscita'] && <Typography variant="caption" color="error">{errors['stato_uscita']}</Typography>}
           </FormControl>
+        </Grid>
+        <Grid size={{ xs: 12, md: 12 }}>
+          <Box
+            sx={{
+              mt: 1,
+              p: 3,
+              border: '2px dashed',
+              borderColor: (theme: Theme) => alpha(theme.palette.grey[400], 0.6),
+              bgcolor: (theme: Theme) => alpha(theme.palette.grey[400], 0.12),
+              borderRadius: 2,
+              textAlign: 'center',
+              color: 'text.secondary',
+              cursor: 'not-allowed'
+            }}
+          >
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 0.5 }}>
+              <UploadFileRoundedIcon color="action" />
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>Trascina qui il file oppure clicca per selezionarlo</Typography>
+            </Stack>
+            <Typography variant="caption">(Mock visivo - caricamento non attivo) • Puoi caricare un solo file JPG/PNG/PDF</Typography>
+          </Box>
         </Grid>
           </>
         )}
@@ -1066,6 +1109,27 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
             </Select>
             {errors['stato_entrata'] && <Typography variant="caption" color="error">{errors['stato_entrata']}</Typography>}
           </FormControl>
+        </Grid>
+        <Grid size={{ xs: 12, md: 12 }}>
+          <Box
+            sx={{
+              mt: 1,
+              p: 3,
+              border: '2px dashed',
+              borderColor: (theme: Theme) => alpha(theme.palette.grey[400], 0.6),
+              bgcolor: (theme: Theme) => alpha(theme.palette.grey[400], 0.12),
+              borderRadius: 2,
+              textAlign: 'center',
+              color: 'text.secondary',
+              cursor: 'not-allowed'
+            }}
+          >
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 0.5 }}>
+              <UploadFileRoundedIcon color="action" />
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>Trascina qui il file oppure clicca per selezionarlo</Typography>
+            </Stack>
+            <Typography variant="caption">(Mock visivo - caricamento non attivo) • Puoi caricare un solo file JPG/PNG/PDF</Typography>
+          </Box>
         </Grid>
       </Grid>
       <Divider sx={{ my: 2 }} />
@@ -1488,7 +1552,6 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
                 freeSolo
                 options={fornitori}
                 getOptionLabel={(o) => (typeof o === 'string' ? o : formatFornitoreLabel(o as FornitoreOption))}
-                filterOptions={(x) => x as FornitoreOption[]}
                 inputValue={String(editData.fornitore || '')}
                 value={editData.fornitore || ''}
                 onInputChange={(_, val) => {
@@ -1548,6 +1611,37 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
                 });
               }} InputLabelProps={{ shrink: true }} />
             </Grid>
+            {docType === 'scontrini' && (
+              <>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField label="Modalità di pagamento" fullWidth value={editData.modalita_pagamento || ''} onChange={(e) => setEditData((p) => ({ ...p, modalita_pagamento: e.target.value }))} InputLabelProps={{ shrink: true }} />
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TextField label="Stato" fullWidth value={'Pagato'} disabled InputLabelProps={{ shrink: true }} />
+                </Grid>
+                <Grid size={{ xs: 12, md: 12 }}>
+                  <Box
+                    sx={{
+                      mt: 1,
+                      p: 3,
+                      border: '2px dashed',
+                      borderColor: (theme: Theme) => alpha(theme.palette.grey[400], 0.6),
+                      bgcolor: (theme: Theme) => alpha(theme.palette.grey[400], 0.12),
+                      borderRadius: 2,
+                      textAlign: 'center',
+                      color: 'text.secondary',
+                      cursor: 'not-allowed'
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 0.5 }}>
+                      <UploadFileRoundedIcon color="action" />
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>Trascina qui il file oppure clicca per selezionarlo</Typography>
+                    </Stack>
+                    <Typography variant="caption">(Mock visivo - caricamento non attivo) • Puoi caricare un solo file JPG/PNG/PDF</Typography>
+                  </Box>
+                </Grid>
+              </>
+            )}
             {docType === 'fattura' && (
               <>
                 <Grid size={{ xs: 12, md: 2 }}>
@@ -1588,6 +1682,27 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
                       <MenuItem value="Pagato">Pagato</MenuItem>
                     </Select>
                   </FormControl>
+                </Grid>
+                <Grid size={{ xs: 12, md: 12 }}>
+                  <Box
+                    sx={{
+                      mt: 1,
+                      p: 3,
+                      border: '2px dashed',
+                      borderColor: (theme: Theme) => alpha(theme.palette.grey[400], 0.6),
+                      bgcolor: (theme: Theme) => alpha(theme.palette.grey[400], 0.12),
+                      borderRadius: 2,
+                      textAlign: 'center',
+                      color: 'text.secondary',
+                      cursor: 'not-allowed'
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 0.5 }}>
+                      <UploadFileRoundedIcon color="action" />
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>Trascina qui il file oppure clicca per selezionarlo</Typography>
+                    </Stack>
+                    <Typography variant="caption">(Mock visivo - caricamento non attivo) • Puoi caricare un solo file JPG/PNG/PDF</Typography>
+                  </Box>
                 </Grid>
               </>
             )}
@@ -2108,6 +2223,27 @@ function EntrateTable({ commessaId, version }: { commessaId: string; version: nu
                   <MenuItem value="Pagato">Pagato</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, md: 12 }}>
+              <Box
+                sx={{
+                  mt: 1,
+                  p: 3,
+                  border: '2px dashed',
+                  borderColor: (theme: Theme) => alpha(theme.palette.grey[400], 0.6),
+                  bgcolor: (theme: Theme) => alpha(theme.palette.grey[400], 0.12),
+                  borderRadius: 2,
+                  textAlign: 'center',
+                  color: 'text.secondary',
+                  cursor: 'not-allowed'
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 0.5 }}>
+                  <UploadFileRoundedIcon color="action" />
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>Trascina qui il file oppure clicca per selezionarlo</Typography>
+                </Stack>
+                <Typography variant="caption">(Mock visivo - caricamento non attivo) • Puoi caricare un solo file JPG/PNG/PDF</Typography>
+              </Box>
             </Grid>
           </Grid>
         </DialogContent>
