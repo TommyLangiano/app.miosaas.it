@@ -394,6 +394,7 @@ export default function GestioneCommessaPage() {
 type UscitaFormProps = { commessaId: string; docType: 'fattura' | 'scontrini'; onCreated?: () => void };
 function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   type FornitoreOption = {
     id?: number | string;
     ragione_sociale?: string;
@@ -429,7 +430,7 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
     modalita_pagamento: '',
     banca_emissione: '',
     numero_conto: '',
-    stato_uscita: currentDocType === 'scontrini' ? 'Pagato' : 'No Pagato'
+    stato_uscita: currentDocType === 'scontrini' ? 'Pagato' : ''
   });
   const [form, setForm] = useState(getInitialForm(docType));
   const computeDerived = (importoStr: string, aliquotaStr: string): { imponibile: string; iva: string } => {
@@ -462,11 +463,58 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
       }
       return next;
     });
+    setErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const scrollToField = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { if ('focus' in el) (el as unknown as { focus: () => void }).focus(); }, 120);
+    }
   };
 
   const handleSubmit = async () => {
     setSaving(true);
     try {
+      // Validazioni obbligatorie per fattura
+      const newErrors: Record<string, string> = {};
+      if (docType === 'fattura') {
+        if (!form.numero_fattura?.trim()) newErrors['numero_fattura'] = 'Campo obbligatorio';
+        if (!form.fornitore?.trim()) newErrors['fornitore'] = 'Campo obbligatorio';
+        if (!form.tipologia?.trim()) newErrors['tipologia'] = 'Campo obbligatorio';
+        if (!form.emissione_fattura?.trim()) newErrors['emissione_fattura'] = 'Campo obbligatorio';
+        if (!form.data_pagamento?.trim()) newErrors['data_pagamento'] = 'Campo obbligatorio';
+        if (!String(form.importo_totale).trim()) newErrors['importo_totale'] = 'Campo obbligatorio';
+        if (String(form.aliquota_iva) === '') newErrors['aliquota_iva'] = 'Campo obbligatorio';
+        if (!form.stato_uscita?.trim()) newErrors['stato_uscita'] = 'Campo obbligatorio';
+      } else {
+        // scontrini: minimo richiesto importo e data + fornitore?
+        if (!form.fornitore?.trim()) newErrors['fornitore'] = 'Campo obbligatorio';
+        if (!form.tipologia?.trim()) newErrors['tipologia'] = 'Campo obbligatorio';
+        if (!String(form.importo_totale).trim()) newErrors['importo_totale'] = 'Campo obbligatorio';
+        if (!form.data_pagamento?.trim()) newErrors['data_pagamento'] = 'Campo obbligatorio';
+      }
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        const order = docType === 'fattura'
+          ? ['numero_fattura','fornitore','tipologia','emissione_fattura','data_pagamento','importo_totale','aliquota_iva','stato_uscita']
+          : ['fornitore','tipologia','data_pagamento','importo_totale'];
+        const first = order.find((k) => newErrors[k]);
+        const idMap: Record<string,string> = {
+          numero_fattura: 'usc-numero-fattura',
+          fornitore: 'usc-fornitore',
+          tipologia: 'usc-tipologia',
+          emissione_fattura: 'usc-emissione',
+          data_pagamento: 'usc-data-pag',
+          importo_totale: 'usc-importo',
+          aliquota_iva: 'usc-aliquota',
+          stato_uscita: 'usc-stato'
+        };
+        if (first && idMap[first]) scrollToField(idMap[first]);
+        setSaving(false);
+        return;
+      }
       const payload = { ...form, commessa_id: commessaId, tipologia_uscita: docType } as Record<string, unknown>;
       if (docType === 'scontrini') {
         (payload as Record<string, unknown>).stato_uscita = 'Pagato';
@@ -500,9 +548,7 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
                 filterOptions={(x) => x as FornitoreOption[]}
                 inputValue={fornitoreQuery}
                 value={selectedFornitore}
-                onInputChange={(_, val) => {
-                  setFornitoreQuery(val || '');
-                }}
+                onInputChange={(_, val) => { setFornitoreQuery(val || ''); if (val) setErrors((prev) => ({ ...prev, fornitore: '' })); }}
                 onChange={(_, val) => {
                   if (!val) {
                     // clear fornitore and related prefilled fields
@@ -550,21 +596,21 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
                   setSelectedFornitore(val);
                 }}
                 renderInput={(params) => (
-                  <TextField {...params} label="Fornitore" InputLabelProps={{ shrink: true }} required />
+                  <TextField {...params} id="usc-fornitore" label="Fornitore" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} required fullWidth error={Boolean(errors['fornitore'])} helperText={errors['fornitore'] || ''} />
                 )}
               />
             </Grid>
             <Grid size={{ xs: 12, md: 5 }}>
-              <TextField label="Tipologia" InputLabelProps={{ shrink: true }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} />
+              <TextField id="usc-tipologia" label="Tipologia" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} error={Boolean(errors['tipologia'])} helperText={errors['tipologia'] || ''} />
             </Grid>
             <Grid size={{ xs: 12, md: 2 }}>
-              <TextField type="date" InputLabelProps={{ shrink: true }} label="Data" required fullWidth value={form.data_pagamento} onChange={handleChange('data_pagamento')} />
+              <TextField id="usc-data-pag" type="date" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} label="Data" required fullWidth value={form.data_pagamento} onChange={handleChange('data_pagamento')} error={Boolean(errors['data_pagamento'])} helperText={errors['data_pagamento'] || ''} />
             </Grid>
           </>
         ) : (
           <>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField label="N. Fattura" InputLabelProps={{ shrink: true }} required fullWidth value={form.numero_fattura} onChange={handleChange('numero_fattura')} />
+          <TextField id="usc-numero-fattura" label="N. Fattura" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} required fullWidth value={form.numero_fattura} onChange={handleChange('numero_fattura')} error={Boolean(errors['numero_fattura'])} helperText={errors['numero_fattura'] || ''} />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <Autocomplete
@@ -575,9 +621,7 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
             filterOptions={(x) => x as FornitoreOption[]}
             inputValue={fornitoreQuery}
             value={selectedFornitore}
-            onInputChange={(_, val) => {
-              setFornitoreQuery(val || '');
-            }}
+            onInputChange={(_, val) => { setFornitoreQuery(val || ''); if (val) setErrors((prev) => ({ ...prev, fornitore: '' })); }}
             onChange={(_, val) => {
               if (!val) {
                 setFornitoreQuery('');
@@ -624,15 +668,15 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
               setSelectedFornitore(val);
             }}
             renderInput={(params) => (
-              <TextField {...params} label="Fornitore" InputLabelProps={{ shrink: true }} required />
+              <TextField {...params} id="usc-fornitore" label="Fornitore" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} required fullWidth error={Boolean(errors['fornitore'])} helperText={errors['fornitore'] || ''} />
             )}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
-          <TextField label="Tipologia" InputLabelProps={{ shrink: true }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} />
+          <TextField id="usc-tipologia" label="Tipologia" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} error={Boolean(errors['tipologia'])} helperText={errors['tipologia'] || ''} />
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField type="date" InputLabelProps={{ shrink: true }} label="Emissione Fattura" required fullWidth value={form.emissione_fattura} onChange={handleChange('emissione_fattura')} />
+          <TextField id="usc-emissione" type="date" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} label="Emissione Fattura" required fullWidth value={form.emissione_fattura} onChange={handleChange('emissione_fattura')} error={Boolean(errors['emissione_fattura'])} helperText={errors['emissione_fattura'] || ''} />
         </Grid>
           </>
         )}
@@ -653,25 +697,29 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
         ) : (
           <>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField type="date" InputLabelProps={{ shrink: true }} label="Data Pagamento" required fullWidth value={form.data_pagamento} onChange={handleChange('data_pagamento')} />
+          <TextField id="usc-data-pag" type="date" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} label="Data Pagamento" required fullWidth value={form.data_pagamento} onChange={handleChange('data_pagamento')} error={Boolean(errors['data_pagamento'])} helperText={errors['data_pagamento'] || ''} />
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField type="number" label="Importo Totale" InputLabelProps={{ shrink: true }} required fullWidth value={form.importo_totale} onChange={handleChange('importo_totale')} />
+          <TextField id="usc-importo" type="number" label="Importo Totale" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} required fullWidth value={form.importo_totale} onChange={handleChange('importo_totale')} error={Boolean(errors['importo_totale'])} helperText={errors['importo_totale'] || ''} />
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <FormControl fullWidth>
-            <InputLabel id="aliquota-iva-label" shrink>Aliquota IVA</InputLabel>
-            <Select labelId="aliquota-iva-label" label="Aliquota IVA" value={form.aliquota_iva}
+          <FormControl fullWidth required error={Boolean(errors['aliquota_iva'])}>
+            <InputLabel id="aliquota-iva-label" shrink sx={{ '& .MuiFormLabel-asterisk': { color: 'error.main' } }}>Aliquota IVA</InputLabel>
+            <Select id="usc-aliquota" labelId="aliquota-iva-label" label="Aliquota IVA" value={form.aliquota_iva}
               onChange={(e) => setForm((p) => {
                 const nextAli = String(e.target.value);
                 const { imponibile, iva } = computeDerived(String(p.importo_totale), nextAli);
                 return { ...p, aliquota_iva: nextAli, imponibile, iva };
-              })}>
+              })}
+              displayEmpty
+            >
+              <MenuItem value="" disabled>Seleziona Aliquota</MenuItem>
               <MenuItem value="0">0%</MenuItem>
               <MenuItem value="4">4%</MenuItem>
               <MenuItem value="10">10%</MenuItem>
               <MenuItem value="22">22%</MenuItem>
             </Select>
+            {errors['aliquota_iva'] && <Typography variant="caption" color="error">{errors['aliquota_iva']}</Typography>}
           </FormControl>
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
@@ -696,13 +744,17 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
           <TextField label="Numero di Conto" InputLabelProps={{ shrink: true }} fullWidth value={form.numero_conto} onChange={handleChange('numero_conto')} />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
-          <FormControl fullWidth required>
-            <InputLabel id="stato-uscita-label" shrink>Stato uscita</InputLabel>
-            <Select labelId="stato-uscita-label" label="Stato uscita" value={form.stato_uscita}
-              onChange={(e) => setForm((p) => ({ ...p, stato_uscita: String(e.target.value) }))}>
+          <FormControl fullWidth required error={Boolean(errors['stato_uscita'])}>
+            <InputLabel id="stato-uscita-label" shrink sx={{ '& .MuiFormLabel-asterisk': { color: 'error.main' } }}>Stato uscita</InputLabel>
+            <Select id="usc-stato" labelId="stato-uscita-label" label="Stato uscita" value={form.stato_uscita}
+              onChange={(e) => setForm((p) => ({ ...p, stato_uscita: String(e.target.value) }))}
+              displayEmpty
+            >
+              <MenuItem value="" disabled>Seleziona Stato</MenuItem>
               <MenuItem value="No Pagato">No Pagato</MenuItem>
               <MenuItem value="Pagato">Pagato</MenuItem>
             </Select>
+            {errors['stato_uscita'] && <Typography variant="caption" color="error">{errors['stato_uscita']}</Typography>}
           </FormControl>
         </Grid>
           </>
@@ -722,6 +774,7 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
 type EntrataFormProps = { commessaId: string; onCreated?: () => void };
 function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   type ClienteOption = {
     id?: number | string;
     ragione_sociale?: string;
@@ -750,27 +803,29 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
     numero_fattura: '',
     emissione_fattura: '',
     importo_totale: '',
-    aliquota_iva: '0',
+    aliquota_iva: '',
     imponibile: '',
     iva: '',
     data_pagamento: '',
     modalita_pagamento: '',
-    stato_entrata: 'No Pagato',
+    stato_entrata: '',
     tipologia_entrata: 'fattura'
   });
   const [form, setForm] = useState(getInitialForm());
-  const computeDerived = (importoStr: string, aliquotaStr: string): { imponibile: string; iva: string } => {
+  // Calcolo da Imponibile e Aliquota → IVA e Importo Totale
+  const computeFromImponibile = (imponibileStr: string, aliquotaStr: string): { iva: string; importo_totale: string } => {
     const parseNum = (v: string): number | null => {
       if (v == null) return null;
       const n = Number(String(v).replace(',', '.'));
       return Number.isFinite(n) ? n : null;
     };
-    const importo = parseNum(importoStr);
+    const imp = parseNum(imponibileStr);
     const ali = parseNum(aliquotaStr);
-    if (importo == null || ali == null) return { imponibile: '', iva: '' };
-    const imponibileVal = importo / (1 + ali / 100);
-    const ivaVal = importo - imponibileVal;
-    return { imponibile: imponibileVal.toFixed(2), iva: ivaVal.toFixed(2) };
+    if (imp == null || ali == null) return { iva: '', importo_totale: '' };
+    // Richiesta: IVA = Imponibile * (1 + Aliquota/100); Importo Totale = Imponibile + IVA
+    const ivaVal = imp * (1 + ali / 100);
+    const totaleVal = imp + ivaVal;
+    return { iva: ivaVal.toFixed(2), importo_totale: totaleVal.toFixed(2) };
   };
   const handleReset = () => { setForm(getInitialForm()); setClienteQuery(''); setSelectedCliente(null); };
 
@@ -778,18 +833,54 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
     const value = e.target.value;
     setForm((prev) => {
       const next = { ...prev, [field]: value } as typeof prev;
-      if (field === 'importo_totale') {
-        const { imponibile, iva } = computeDerived(String(next.importo_totale), String(next.aliquota_iva));
-        next.imponibile = imponibile;
+      if (field === 'imponibile') {
+        const { iva, importo_totale } = computeFromImponibile(String(next.imponibile), String(next.aliquota_iva));
         next.iva = iva;
+        next.importo_totale = importo_totale;
       }
       return next;
     });
+    setErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const scrollToField = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { if ('focus' in el) (el as unknown as { focus: () => void }).focus(); }, 120);
+    }
   };
 
   const handleSubmit = async () => {
     setSaving(true);
     try {
+      const newErrors: Record<string, string> = {};
+      if (!form.numero_fattura?.trim()) newErrors['numero_fattura'] = 'Campo obbligatorio';
+      if (!form.cliente?.trim()) newErrors['cliente'] = 'Campo obbligatorio';
+      if (!form.tipologia?.trim()) newErrors['tipologia'] = 'Campo obbligatorio';
+      if (!form.emissione_fattura?.trim()) newErrors['emissione_fattura'] = 'Campo obbligatorio';
+      if (!form.data_pagamento?.trim()) newErrors['data_pagamento'] = 'Campo obbligatorio';
+      if (!String(form.imponibile).trim()) newErrors['imponibile'] = 'Campo obbligatorio';
+      if (form.aliquota_iva === '') newErrors['aliquota_iva'] = 'Campo obbligatorio';
+      if (!form.stato_entrata?.trim()) newErrors['stato_entrata'] = 'Campo obbligatorio';
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        const order = ['numero_fattura','cliente','tipologia','emissione_fattura','data_pagamento','imponibile','aliquota_iva','stato_entrata'];
+        const first = order.find((k) => newErrors[k]);
+        const idMap: Record<string,string> = {
+          numero_fattura: 'entr-numero-fattura',
+          cliente: 'entr-cliente',
+          tipologia: 'entr-tipologia',
+          emissione_fattura: 'entr-emissione',
+          data_pagamento: 'entr-data-pag',
+          imponibile: 'entr-imponibile',
+          aliquota_iva: 'entr-aliquota',
+          stato_entrata: 'entr-stato'
+        };
+        if (first && idMap[first]) scrollToField(idMap[first]);
+        setSaving(false);
+        return;
+      }
       const payload = { ...form, commessa_id: commessaId } as Record<string, unknown>;
       await axios.post('/api/tenants/entrate', payload);
       setForm(getInitialForm());
@@ -805,7 +896,7 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
     <Box>
       <Grid container spacing={2} sx={{ width: '100%', m: 0 }}>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField label="N. Fattura" InputLabelProps={{ shrink: true }} required fullWidth value={form.numero_fattura} onChange={handleChange('numero_fattura')} />
+          <TextField id="entr-numero-fattura" label="N. Fattura" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} required fullWidth value={form.numero_fattura} onChange={handleChange('numero_fattura')} error={Boolean(errors['numero_fattura'])} helperText={errors['numero_fattura'] || ''} />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <Autocomplete
@@ -823,19 +914,16 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
               if (!val) {
                 setClienteQuery('');
                 setSelectedCliente(null);
-                setForm((p) => {
-                  const normalizedAli = '0';
-                  const { imponibile, iva } = computeDerived(String(p.importo_totale), normalizedAli);
-                  return {
-                    ...p,
-                    cliente: '',
-                    tipologia: '',
-                    modalita_pagamento: '',
-                    aliquota_iva: normalizedAli,
-                    imponibile,
-                    iva
-                  };
-                });
+                setForm((p) => ({
+                  ...p,
+                  cliente: '',
+                  tipologia: '',
+                  modalita_pagamento: '',
+                  aliquota_iva: '',
+                  imponibile: '',
+                  iva: '',
+                  importo_totale: ''
+                }));
                 return;
               }
               if (typeof val === 'string') {
@@ -850,71 +938,82 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
                 const normalizedAli = rawAli != null && String(rawAli) !== '' && !Number.isNaN(Number(rawAli))
                   ? String(Number(rawAli))
                   : p.aliquota_iva;
-                const { imponibile, iva } = computeDerived(String(p.importo_totale), normalizedAli);
+                const { iva, importo_totale } = computeFromImponibile(String(p.imponibile), normalizedAli);
                 return {
                   ...p,
                   cliente: formatClienteLabel(v),
                   tipologia: v.tipologia || p.tipologia,
                   modalita_pagamento: v.mod_pagamento_pref || p.modalita_pagamento,
                   aliquota_iva: normalizedAli,
-                  imponibile,
-                  iva
+                  iva,
+                  importo_totale
                 };
               });
               setClienteQuery(formatClienteLabel(v));
               setSelectedCliente(val);
             }}
             renderInput={(params) => (
-              <TextField {...params} label="Cliente" InputLabelProps={{ shrink: true }} required />
+              <TextField {...params} id="entr-cliente" label="Cliente" required fullWidth error={Boolean(errors['cliente'])} helperText={errors['cliente'] || ''} InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} />
             )}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
-          <TextField label="Tipologia" InputLabelProps={{ shrink: true }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} />
+          <TextField id="entr-tipologia" label="Tipologia" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} required fullWidth value={form.tipologia} onChange={handleChange('tipologia')} error={Boolean(errors['tipologia'])} helperText={errors['tipologia'] || ''} />
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField type="date" InputLabelProps={{ shrink: true }} label="Emissione Fattura" required fullWidth value={form.emissione_fattura} onChange={handleChange('emissione_fattura')} />
+          <TextField id="entr-emissione" type="date" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} label="Emissione Fattura" required fullWidth value={form.emissione_fattura} onChange={handleChange('emissione_fattura')} error={Boolean(errors['emissione_fattura'])} helperText={errors['emissione_fattura'] || ''} />
         </Grid>
 
         <Grid size={{ xs: 12, md: 3 }}>
-          <TextField type="date" InputLabelProps={{ shrink: true }} label="Data Pagamento" required fullWidth value={form.data_pagamento} onChange={handleChange('data_pagamento')} />
+          <TextField id="entr-data-pag" type="date" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} label="Data Pagamento" required fullWidth value={form.data_pagamento} onChange={handleChange('data_pagamento')} error={Boolean(errors['data_pagamento'])} helperText={errors['data_pagamento'] || ''} />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
-          <TextField type="number" label="Importo Totale" InputLabelProps={{ shrink: true }} required fullWidth value={form.importo_totale} onChange={handleChange('importo_totale')} />
+          <TextField id="entr-imponibile" type="number" label="Imponibile" InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }} required fullWidth value={form.imponibile} onChange={handleChange('imponibile')} error={Boolean(errors['imponibile'])} helperText={errors['imponibile'] || ''} />
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <FormControl fullWidth>
-            <InputLabel id="aliquota-iva-entrate-label" shrink>Aliquota IVA</InputLabel>
-            <Select labelId="aliquota-iva-entrate-label" label="Aliquota IVA" value={form.aliquota_iva}
-              onChange={(e) => setForm((p) => {
+          <FormControl fullWidth required error={Boolean(errors['aliquota_iva'])}>
+            <InputLabel id="aliquota-iva-entrate-label" shrink sx={{ '& .MuiFormLabel-asterisk': { color: 'error.main' } }}>Aliquota IVA</InputLabel>
+            <Select id="entr-aliquota" labelId="aliquota-iva-entrate-label" label="Aliquota IVA" value={form.aliquota_iva}
+              onChange={(e) => {
                 const nextAli = String(e.target.value);
-                const { imponibile, iva } = computeDerived(String(p.importo_totale), nextAli);
-                return { ...p, aliquota_iva: nextAli, imponibile, iva };
-              })}>
+                setForm((p) => {
+                  const { iva, importo_totale } = computeFromImponibile(String(p.imponibile), nextAli);
+                  return { ...p, aliquota_iva: nextAli, iva, importo_totale };
+                });
+                setErrors((prev) => ({ ...prev, aliquota_iva: '' }));
+              }}
+              displayEmpty
+            >
+              <MenuItem value="" disabled>Seleziona Aliquota</MenuItem>
               <MenuItem value="0">0%</MenuItem>
               <MenuItem value="4">4%</MenuItem>
               <MenuItem value="10">10%</MenuItem>
               <MenuItem value="22">22%</MenuItem>
             </Select>
+            {errors['aliquota_iva'] && <Typography variant="caption" color="error">{errors['aliquota_iva']}</Typography>}
           </FormControl>
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField type="number" label="Imponibile" InputLabelProps={{ shrink: true }} required fullWidth value={form.imponibile} InputProps={{ readOnly: true }} />
+          <TextField type="number" label="IVA" InputLabelProps={{ shrink: true }} required fullWidth value={form.iva} InputProps={{ readOnly: true }} />
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <TextField type="number" label="IVA" InputLabelProps={{ shrink: true }} required fullWidth value={form.iva} InputProps={{ readOnly: true }} />
+          <TextField id="entr-importo" type="number" label="Importo Totale" InputLabelProps={{ shrink: true }} required fullWidth value={form.importo_totale} InputProps={{ readOnly: true }} />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField label={'Modalità di pagamento'} InputLabelProps={{ shrink: true }} fullWidth value={form.modalita_pagamento} onChange={handleChange('modalita_pagamento')} />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <FormControl fullWidth required>
-            <InputLabel id="stato-entrata-label" shrink>Stato</InputLabel>
-            <Select labelId="stato-entrata-label" label="Stato" value={form.stato_entrata}
-              onChange={(e) => setForm((p) => ({ ...p, stato_entrata: String(e.target.value) }))}>
+          <FormControl fullWidth required error={Boolean(errors['stato_entrata'])}>
+            <InputLabel id="stato-entrata-label" shrink sx={{ '& .MuiFormLabel-asterisk': { color: 'error.main' } }}>Stato</InputLabel>
+            <Select id="entr-stato" labelId="stato-entrata-label" label="Stato" value={form.stato_entrata}
+              onChange={(e) => { setForm((p) => ({ ...p, stato_entrata: String(e.target.value) })); setErrors((prev) => ({ ...prev, stato_entrata: '' })); }}
+              displayEmpty
+            >
+              <MenuItem value="" disabled>Seleziona Stato</MenuItem>
               <MenuItem value="No Pagato">No Pagato</MenuItem>
               <MenuItem value="Pagato">Pagato</MenuItem>
             </Select>
+            {errors['stato_entrata'] && <Typography variant="caption" color="error">{errors['stato_entrata']}</Typography>}
           </FormControl>
         </Grid>
       </Grid>
