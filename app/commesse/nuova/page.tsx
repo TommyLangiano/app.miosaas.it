@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, type ComponentType } from 'react';
+import React, { useEffect, useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import axios from '../../../src/utils/axios';
@@ -11,14 +11,15 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import MenuItem from '@mui/material/MenuItem';
 import Alert from '@mui/material/Alert';
+import Autocomplete from '@mui/material/Autocomplete';
 // import Typography from '@mui/material/Typography';
 // Upload file UI rimosso
 
 export default function NuovaCommessaPage() {
   const router = useRouter();
   const [form, setForm] = useState({
-    cliente_tipo: 'privato',
-    tipologia_commessa: 'appalto',
+    cliente_tipo: '',
+    tipologia_commessa: '',
     codice: '',
     committente_commessa: '',
     nome: '',
@@ -36,6 +37,12 @@ export default function NuovaCommessaPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [clienti, setClienti] = useState<Array<Record<string, unknown>>>([]);
+  const [clientiLoading, setClientiLoading] = useState<boolean>(false);
+  // manteniamo solo il testo e l'oggetto selezionato; l'id non serve separatamente
+  const [committenteInput, setCommittenteInput] = useState<string>('');
+  const [selectedCliente, setSelectedCliente] = useState<Record<string, unknown> | null>(null);
   // Rimosso feedback inline provincia per evitare UI invasiva
   // Stato file rimosso
 
@@ -49,33 +56,54 @@ export default function NuovaCommessaPage() {
       return;
     }
     setForm((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
   // Helpers upload rimossi
+
+  const scrollToField = (fieldId: string) => {
+    const el = document.getElementById(fieldId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // piccola pausa per garantire focus dopo scroll
+      setTimeout(() => {
+        if ('focus' in el) (el as unknown as { focus: () => void }).focus();
+      }, 150);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
     setSuccess(null);
-    // Validazione soft lato client: evita blocchi UI, demanda al server il controllo definitivo
+    const newErrors: Record<string, string> = {};
+    // Validazione hard lato client sui campi richiesti
+    if (!form.cliente_tipo) newErrors['cliente_tipo'] = 'Campo obbligatorio';
+    if (!form.tipologia_commessa) newErrors['tipologia_commessa'] = 'Campo obbligatorio';
+    if (!form.nome || form.nome.trim() === '') newErrors['nome'] = 'Campo obbligatorio';
+    if (!form.committente_commessa || form.committente_commessa.trim() === '') newErrors['committente_commessa'] = 'Campo obbligatorio';
+    if (form.cliente_tipo === 'pubblico') {
+      if (!form.cig || form.cig.trim() === '') newErrors['cig'] = 'Campo obbligatorio';
+      if (!form.cup || form.cup.trim() === '') newErrors['cup'] = 'Campo obbligatorio';
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      const firstKey = Object.keys(newErrors)[0];
+      const mapId: Record<string, string> = {
+        cliente_tipo: 'field-cliente-tipo',
+        tipologia_commessa: 'field-tipologia-commessa',
+        nome: 'field-nome',
+        committente_commessa: 'field-committente',
+        cig: 'field-cig',
+        cup: 'field-cup'
+      };
+      const firstId = mapId[firstKey] || '';
+      if (firstId) scrollToField(firstId);
+      setSaving(false);
+      return;
+    }
     try {
-      // Validazione hard lato client per adeguamento API
-      if (!form.committente_commessa || form.committente_commessa.trim() === '') {
-        setError("Il campo 'Committente Commessa' è obbligatorio.");
-        setSaving(false);
-        return;
-      }
-      // Validazione CIG/CUP per clienti pubblici
-      if (form.cliente_tipo === 'pubblico') {
-        const cigOk = (form.cig || '').trim() !== '';
-        const cupOk = (form.cup || '').trim() !== '';
-        if (!cigOk || !cupOk) {
-          setError('CIG e CUP sono obbligatori quando il cliente è Pubblico.');
-          setSaving(false);
-          return;
-        }
-      }
       // Nessun obbligo per cliente: il backend userà cliente_tipo come fallback per rispettare NOT NULL
       const companyId = localStorage.getItem('company_id');
       const headers: Record<string, string> = {};
@@ -112,6 +140,24 @@ export default function NuovaCommessaPage() {
     }
   };
 
+  // Carica elenco clienti per dropdown CLIENTE Commessa
+  useEffect(() => {
+    (async () => {
+      try {
+        setClientiLoading(true);
+        const companyId = localStorage.getItem('company_id');
+        const headers: Record<string, string> = {};
+        if (companyId) headers['X-Company-ID'] = companyId;
+        const res = await axios.get('/api/tenants/clienti', { headers });
+        setClienti(Array.isArray(res.data?.data) ? res.data.data : []);
+      } catch {
+        // errore silenzioso: il form rimane compilabile manualmente
+      } finally {
+        setClientiLoading(false);
+      }
+    })();
+  }, []);
+
   return (
     <>
       {(() => {
@@ -130,8 +176,20 @@ export default function NuovaCommessaPage() {
                 onChange={handleChange}
                 fullWidth
                 required
-                helperText="Privato o Pubblico"
+                error={Boolean(errors['cliente_tipo'])}
+                helperText={errors['cliente_tipo'] || 'Privato o Pubblico'}
+                id="field-cliente-tipo"
+                InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }}
+                SelectProps={{
+                  displayEmpty: true,
+                  renderValue: (selected) => {
+                    if (!selected) return 'Seleziona Tipologia Cliente';
+                    const map: Record<string, string> = { privato: 'Privato', pubblico: 'Pubblico' };
+                    return map[String(selected)] || String(selected);
+                  }
+                }}
               >
+                <MenuItem value="" disabled>Seleziona Tipologia Cliente</MenuItem>
                 <MenuItem value="privato">Privato</MenuItem>
                 <MenuItem value="pubblico">Pubblico</MenuItem>
               </TextField>
@@ -145,9 +203,25 @@ export default function NuovaCommessaPage() {
                 onChange={handleChange}
                 fullWidth
                 required
-                helperText="Appalto, ATI, Sub Appalto, Sub Affidamento"
-                InputLabelProps={{ shrink: true }}
+                error={Boolean(errors['tipologia_commessa'])}
+                helperText={errors['tipologia_commessa'] || 'Appalto, ATI, Sub Appalto, Sub Affidamento'}
+                id="field-tipologia-commessa"
+                InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }}
+                SelectProps={{
+                  displayEmpty: true,
+                  renderValue: (selected) => {
+                    if (!selected) return 'Seleziona Tipologia Commessa';
+                    const map: Record<string, string> = {
+                      appalto: 'Appalto',
+                      ati: 'Ati',
+                      sub_appalto: 'Sub Appalto',
+                      sub_affidamento: 'Sub Affidamento'
+                    };
+                    return map[String(selected)] || String(selected);
+                  }
+                }}
               >
+                <MenuItem value="" disabled>Seleziona Tipologia Commessa</MenuItem>
                 <MenuItem value="appalto">Appalto</MenuItem>
                 <MenuItem value="ati">Ati</MenuItem>
                 <MenuItem value="sub_appalto">Sub Appalto</MenuItem>
@@ -165,19 +239,71 @@ export default function NuovaCommessaPage() {
                 required
                 autoComplete="off"
                 inputProps={{ 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-np-ignore': 'true' }}
-                InputLabelProps={{ shrink: true }}
+                error={Boolean(errors['nome'])}
+                helperText={errors['nome'] || ''}
+                id="field-nome"
+                InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }}
               />
             </Box>
-            {/* Committente e Codice affiancati */}
+            {/* Cliente Commessa (autocomplete con freeSolo) e Codice affiancati */}
             <Box>
-              <TextField name="committente_commessa" label="Committente Commessa" value={form.committente_commessa} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
+              <Autocomplete
+                freeSolo
+                options={clienti.map((c) => {
+                  const rc = c as Record<string, unknown>;
+                  const id = String(rc['id'] as unknown as string);
+                  const label = (rc['ragione_sociale'] as string) || [rc['nome'], rc['cognome']].filter(Boolean).join(' ') || (rc['email'] as string) || `ID ${id}`;
+                  return { id, label, rc };
+                })}
+                getOptionLabel={(option) => typeof option === 'string' ? option : (option.label || '')}
+                value={selectedCliente ? { id: String((selectedCliente as Record<string, unknown>)['id'] || ''), label: (selectedCliente['ragione_sociale'] as string) || [selectedCliente['nome'], selectedCliente['cognome']].filter(Boolean).join(' ') || (selectedCliente['email'] as string) || '' , rc: selectedCliente } : null}
+                onChange={(event, newValue) => {
+                  if (newValue && typeof newValue === 'object') {
+                    const val = newValue as unknown as { id: string; label: string; rc: Record<string, unknown> };
+                    setSelectedCliente(val.rc);
+                    const cl = val.rc as Record<string, unknown>;
+                    const displayName = val.label || '';
+                    setForm((prev) => ({
+                      ...prev,
+                      committente_commessa: displayName,
+                      citta: (cl['citta'] as string) || prev.citta,
+                      provincia: (cl['provincia'] as string) || prev.provincia,
+                      via: (cl['via'] as string) || prev.via,
+                      civico: (cl['civico'] as string) || prev.civico
+                    }));
+                    setCommittenteInput(displayName);
+                    setErrors((prev) => ({ ...prev, committente_commessa: '' }));
+                  } else {
+                    setSelectedCliente(null);
+                  }
+                }}
+                inputValue={committenteInput}
+                onInputChange={(event, newInputValue) => {
+                  setCommittenteInput(newInputValue);
+                  setForm((prev) => ({ ...prev, committente_commessa: newInputValue }));
+                  if (newInputValue) setErrors((prev) => ({ ...prev, committente_commessa: '' }));
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Cliente Commessa"
+                    required
+                    fullWidth
+                    error={Boolean(errors['committente_commessa'])}
+                    helperText={errors['committente_commessa'] || (clientiLoading ? 'Caricamento clienti…' : 'Scrivi o seleziona dall\'anagrafica')}
+                    id="field-committente"
+                    InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }}
+                  />)
+                }
+                fullWidth
+              />
             </Box>
             <Box>
-              <TextField name="codice" label="Codice Commessa" value={form.codice} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
+              <TextField name="codice" label="Codice Commessa" value={form.codice} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
             </Box>
             {/* Importo Commessa a tutta riga sotto Committente/Codice */}
             <Box sx={{ gridColumn: '1 / -1' }}>
-              <TextField name="importo_commessa" label="Importo Commessa" type="number" value={form.importo_commessa} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
+              <TextField name="importo_commessa" label="Importo Commessa" type="number" value={form.importo_commessa} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
             </Box>
             {/* CIG e CUP sotto Importo Commessa, SOLO per cliente pubblico */}
             {form.cliente_tipo === 'pubblico' && (
@@ -190,7 +316,10 @@ export default function NuovaCommessaPage() {
                     onChange={handleChange}
                     fullWidth
                     required={form.cliente_tipo === 'pubblico'}
-                    InputLabelProps={{ shrink: true }}
+                    error={Boolean(errors['cig'])}
+                    helperText={errors['cig'] || ''}
+                    id="field-cig"
+                    InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }}
                   />
                 </Box>
                 <Box>
@@ -201,7 +330,10 @@ export default function NuovaCommessaPage() {
                     onChange={handleChange}
                     fullWidth
                     required={form.cliente_tipo === 'pubblico'}
-                    InputLabelProps={{ shrink: true }}
+                    error={Boolean(errors['cup'])}
+                    helperText={errors['cup'] || ''}
+                    id="field-cup"
+                    InputLabelProps={{ shrink: true, sx: { '& .MuiFormLabel-asterisk': { color: 'error.main' } } }}
                   />
                 </Box>
               </>
@@ -222,7 +354,6 @@ export default function NuovaCommessaPage() {
                 value={form.citta}
                 onChange={handleChange}
                 fullWidth
-                required
                 autoComplete="off"
                 inputProps={{ 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-np-ignore': 'true' }}
                 InputLabelProps={{ shrink: true }}
@@ -235,15 +366,14 @@ export default function NuovaCommessaPage() {
                 autoComplete="off"
                 inputProps={{ maxLength: 2, 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-np-ignore': 'true' }}
                 sx={{ width: { xs: '100%', md: '7ch' } }}
-                required
                 InputLabelProps={{ shrink: true }}
               />
-              <TextField name="via" label="Via" value={form.via} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
-              <TextField name="civico" label="N. Civico" value={form.civico} onChange={handleChange} fullWidth required InputLabelProps={{ shrink: true }} />
+              <TextField name="via" label="Via" value={form.via} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
+              <TextField name="civico" label="N. Civico" value={form.civico} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
             </Box>
             {/* Date affiancate */}
             <Box>
-              <TextField name="data_inizio" label="Data Inizio" type="date" value={form.data_inizio} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} required />
+              <TextField name="data_inizio" label="Data Inizio" type="date" value={form.data_inizio} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />
             </Box>
             <Box>
               <TextField name="data_fine_prevista" label="Data Fine prevista" type="date" value={form.data_fine_prevista} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} />

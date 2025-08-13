@@ -297,6 +297,119 @@ export default function CommessaDettaglioPage() {
         </Stack>
       ) : (
         <>
+          {/* Stat cards posizionate sopra le info commessa */}
+          <Box sx={{ mb: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
+            {/* Ricavi - Verde (da entrate) */}
+            <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#16a34a', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(22,163,74,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(22,163,74,0.35)' } }}>
+              <Tooltip title="Vai a Gestione Commessa (Ricavi)" arrow>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    const url = `/gestione-commessa?commessa_id=${encodeURIComponent(id)}&side=entrate&doc=fattura`;
+                    if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
+                  }}
+                  sx={{ position: 'absolute', top: 6, right: 6, color: 'common.white', opacity: 0.85, '&:hover': { opacity: 1 } }}
+                >
+                  <OpenInNewRoundedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
+                <Typography variant="subtitle1" color="common.white" sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3 }}>RICAVI</Typography>
+                <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
+                  {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totalRicavi)}
+                </Typography>
+                <Box sx={{ mt: 1, mb: 0.5, height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.18, borderRadius: 1 }} />
+                <Box sx={{ textAlign: 'center', width: '100%', maxWidth: 560 }}>
+                  <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
+                    Imponibile: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totImponibileRicavi)}
+                  </Typography>
+                  <Box sx={{ my: 0.5, mx: 'auto', height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.12, borderRadius: 1 }} />
+                  <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
+                    IVA: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totIvaRicavi)}
+                  </Typography>
+                </Box>
+              </Stack>
+              <ArrowUpwardRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
+            </Box>
+            {/* Costi - Rosso */}
+            <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#ef4444', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(239,68,68,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(239,68,68,0.35)' } }}>
+              <Tooltip title="Vai a Gestione Commessa (Costi)" arrow>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    const url = `/gestione-commessa?commessa_id=${encodeURIComponent(id)}&side=uscite&doc=fattura`;
+                    if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
+                  }}
+                  sx={{ position: 'absolute', top: 6, right: 6, color: 'common.white', opacity: 0.85, '&:hover': { opacity: 1 } }}
+                >
+                  <OpenInNewRoundedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
+                <Typography variant="subtitle1" color="common.white" sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3 }}>COSTI</Typography>
+                <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
+                  {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totalCosti)}
+                </Typography>
+                <Box sx={{ mt: 1, mb: 0.75, height: 1, width: '70%', bgcolor: 'common.white', opacity: 0.2, borderRadius: 1 }} />
+                <Box sx={{ textAlign: 'center', width: '100%', maxWidth: 560 }}>
+                  <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
+                    Imponibile: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totImponibileCosti)}
+                  </Typography>
+                  <Box sx={{ my: 0.5, mx: 'auto', height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.12, borderRadius: 1 }} />
+                  <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
+                    IVA: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totIvaCosti)}
+                  </Typography>
+                </Box>
+              </Stack>
+              <ArrowDownwardRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
+            </Box>
+            {/* Utile Lordo - Blu (Imp. Ricavi - Imp. Costi) */}
+            <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#1e3a8a', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(30,58,138,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(30,58,138,0.35)' } }}>
+              <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
+                <Typography variant="subtitle1" color="common.white" sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3 }}>UTILE LORDO</Typography>
+                <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
+                  {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(utileLordo)}
+                </Typography>
+                <Box sx={{ mt: 1, mb: 0.5, height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.18, borderRadius: 1 }} />
+                <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.82rem', md: '0.9rem' }, opacity: 0.85 }}>
+                  (Imp. Ricavi - Imp. Costi)
+                </Typography>
+              </Stack>
+              <EuroRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
+            </Box>
+            {/* IVA - Grigio chiaro (IVA Ricavi - IVA Costi) */}
+            <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#9ca3af', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(156,163,175,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(156,163,175,0.35)' } }}>
+              <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
+                <Stack alignItems="center" spacing={0} sx={{ lineHeight: 1 }}>
+                  <Typography
+                    variant="subtitle1"
+                    color="common.white"
+                    sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3, mb: 0 }}
+                  >
+                    IVA
+                  </Typography>
+                  {ivaLabel && (
+                    <Typography
+                      variant="subtitle1"
+                      color="common.white"
+                      sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, mt: -0.25 }}
+                    >
+                      {ivaLabel}
+                    </Typography>
+                  )}
+                </Stack>
+                <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
+                  {`${ivaPrefix}${new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Math.abs(ivaNet))}`}
+                </Typography>
+                <Box sx={{ mt: 1, mb: 0.5, height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.18, borderRadius: 1 }} />
+                <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.82rem', md: '0.9rem' }, opacity: 0.85 }}>
+                  (IVA Ricavi - IVA Costi)
+                </Typography>
+              </Stack>
+              <ReceiptLongRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
+            </Box>
+          </Box>
+
           {/* Dettagli: griglia responsiva 2-col su xs, full span ultimo se dispari */}
           {(() => {
             const items: Array<{ label: string; value: string }> = [];
@@ -421,113 +534,6 @@ export default function CommessaDettaglioPage() {
         </>
       )}
       </MainCard>
-
-      {/* Stat cards fuori dalla Card Content, posizionate sotto le info commessa */}
-      <Box sx={{ mt: 2, mb: 1.25, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
-        {/* Ricavi - Verde (da entrate) */}
-        <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#16a34a', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(22,163,74,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(22,163,74,0.35)' } }}>
-          <Tooltip title="Vai a Gestione Commessa (Ricavi)" arrow>
-            <IconButton
-              size="small"
-              onClick={() => router.push(`/gestione-commessa?commessa_id=${encodeURIComponent(id)}&side=entrate&doc=fattura`) }
-              sx={{ position: 'absolute', top: 6, right: 6, color: 'common.white', opacity: 0.85, '&:hover': { opacity: 1 } }}
-            >
-              <OpenInNewRoundedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
-            <Typography variant="subtitle1" color="common.white" sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3 }}>RICAVI</Typography>
-            <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
-              {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totalRicavi)}
-            </Typography>
-            <Box sx={{ mt: 1, mb: 0.5, height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.18, borderRadius: 1 }} />
-            <Box sx={{ textAlign: 'center', width: '100%', maxWidth: 560 }}>
-              <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
-                Imponibile: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totImponibileRicavi)}
-              </Typography>
-              <Box sx={{ my: 0.5, mx: 'auto', height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.12, borderRadius: 1 }} />
-              <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
-                IVA: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totIvaRicavi)}
-              </Typography>
-            </Box>
-          </Stack>
-          <ArrowUpwardRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
-        </Box>
-        {/* Costi - Rosso */}
-        <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#ef4444', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(239,68,68,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(239,68,68,0.35)' } }}>
-          <Tooltip title="Vai a Gestione Commessa (Costi)" arrow>
-            <IconButton
-              size="small"
-              onClick={() => router.push(`/gestione-commessa?commessa_id=${encodeURIComponent(id)}&side=uscite&doc=fattura`) }
-              sx={{ position: 'absolute', top: 6, right: 6, color: 'common.white', opacity: 0.85, '&:hover': { opacity: 1 } }}
-            >
-              <OpenInNewRoundedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
-            <Typography variant="subtitle1" color="common.white" sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3 }}>COSTI</Typography>
-            <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
-              {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totalCosti)}
-            </Typography>
-            <Box sx={{ mt: 1, mb: 0.75, height: 1, width: '70%', bgcolor: 'common.white', opacity: 0.2, borderRadius: 1 }} />
-            <Box sx={{ textAlign: 'center', width: '100%', maxWidth: 560 }}>
-              <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
-                Imponibile: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totImponibileCosti)}
-              </Typography>
-              <Box sx={{ my: 0.5, mx: 'auto', height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.12, borderRadius: 1 }} />
-              <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', md: '0.95rem' }, lineHeight: 1.2 }}>
-                IVA: {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(totIvaCosti)}
-              </Typography>
-            </Box>
-          </Stack>
-          <ArrowDownwardRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
-        </Box>
-        {/* Utile Lordo - Blu (Imp. Ricavi - Imp. Costi) */}
-        <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#1e3a8a', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(30,58,138,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(30,58,138,0.35)' } }}>
-          <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
-            <Typography variant="subtitle1" color="common.white" sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3 }}>UTILE LORDO</Typography>
-            <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
-              {new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(utileLordo)}
-            </Typography>
-            <Box sx={{ mt: 1, mb: 0.5, height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.18, borderRadius: 1 }} />
-            <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.82rem', md: '0.9rem' }, opacity: 0.85 }}>
-              (Imp. Ricavi - Imp. Costi)
-            </Typography>
-          </Stack>
-          <EuroRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
-        </Box>
-        {/* IVA - Grigio chiaro (IVA Ricavi - IVA Costi) */}
-        <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 4, bgcolor: '#9ca3af', color: '#fff', p: { xs: 2, md: 3 }, minHeight: 96, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px rgba(156,163,175,0.25)', transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(156,163,175,0.35)' } }}>
-          <Stack alignItems="center" spacing={0.5} sx={{ position: 'relative', zIndex: 1 }}>
-            <Stack alignItems="center" spacing={0} sx={{ lineHeight: 1 }}>
-              <Typography
-                variant="subtitle1"
-                color="common.white"
-                sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, letterSpacing: 0.3, mb: 0 }}
-              >
-                IVA
-              </Typography>
-              {ivaLabel && (
-                <Typography
-                  variant="subtitle1"
-                  color="common.white"
-                  sx={{ fontWeight: 900, fontSize: { xs: '1rem', md: '1.1rem' }, mt: -0.25 }}
-                >
-                  {ivaLabel}
-                </Typography>
-              )}
-            </Stack>
-            <Typography color="common.white" sx={{ fontWeight: 900, lineHeight: 1.05, fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
-              {`${ivaPrefix}${new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Math.abs(ivaNet))}`}
-            </Typography>
-            <Box sx={{ mt: 1, mb: 0.5, height: 1, width: '60%', bgcolor: 'common.white', opacity: 0.18, borderRadius: 1 }} />
-            <Typography color="common.white" sx={{ fontWeight: 500, fontSize: { xs: '0.82rem', md: '0.9rem' }, opacity: 0.85 }}>
-              (IVA Ricavi - IVA Costi)
-            </Typography>
-          </Stack>
-          <ReceiptLongRoundedIcon sx={{ position: 'absolute', left: -8, bottom: -8, fontSize: 120, opacity: 0.12 }} />
-        </Box>
-      </Box>
 
       
     </>

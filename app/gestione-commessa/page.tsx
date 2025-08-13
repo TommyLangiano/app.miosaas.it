@@ -1,6 +1,5 @@
 "use client";
-import { useMemo, useRef, useState, useEffect, Fragment } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useMemo, useState, useEffect, Fragment } from 'react';
 import { useSWR, mutate } from '../../src/utils/swr';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -57,8 +56,7 @@ export default function GestioneCommessaPage() {
   const [selectedDocType, setSelectedDocType] = useState<'fattura' | 'scontrini' | ''>('');
   // Card form uscita senza collapse
   const { data, error, isLoading } = useSWR('/api/tenants/commesse');
-  const searchParams = useSearchParams();
-  const initializedFromQuery = useRef(false);
+  // rimosso utilizzo di initializedFromQuery (non serve più)
 
   const options: CommessaOption[] = useMemo(() => (Array.isArray(data) ? (data as CommessaOption[]) : []), [data]);
   const selectedCommessaName = useMemo(() => {
@@ -108,31 +106,7 @@ export default function GestioneCommessaPage() {
   );
 
   // Rimosso Popper personalizzato; uso Popper di default con slotProps
-  // Inizializza da query string (commessa_id, side, doc)
-  useEffect(() => {
-    if (initializedFromQuery.current) return;
-    const cid = searchParams?.get('commessa_id');
-    const side = (searchParams?.get('side') as 'entrate' | 'uscite' | null) || null;
-    const doc = (searchParams?.get('doc') as 'fattura' | 'scontrini' | null) || null;
-    let did = false;
-    if (cid) {
-      setSelectedId(String(cid));
-      did = true;
-    }
-    if (side === 'entrate' || side === 'uscite') {
-      setSelectedSide(side);
-      did = true;
-    }
-    if (doc && side === 'uscite') {
-      setSelectedDocType(doc);
-    } else if (side === 'entrate') {
-      setSelectedDocType('fattura');
-    }
-    if (did) {
-      setOpenUscita(false);
-      initializedFromQuery.current = true;
-    }
-  }, [searchParams]);
+  // Rimosso: nessuna inizializzazione automatica da query string
 
   return (
     <>
@@ -157,10 +131,11 @@ export default function GestioneCommessaPage() {
           }
           headerSX={{ '& .MuiCardHeader-content': { width: '100%', display: 'flex', justifyContent: 'center' } }}
           content={false}
-           onClick={() => {
-             setSelectedSide('entrate');
-             setSelectedDocType('fattura');
-           }}
+          onClick={(e: React.MouseEvent) => {
+            e.preventDefault();
+            setSelectedSide('entrate');
+            setSelectedDocType('fattura');
+          }}
           sx={(theme: Theme) => ({
             position: 'relative',
             cursor: 'pointer',
@@ -205,10 +180,11 @@ export default function GestioneCommessaPage() {
           }
           headerSX={{ '& .MuiCardHeader-content': { width: '100%', display: 'flex', justifyContent: 'center' } }}
           content={false}
-           onClick={() => {
-             setSelectedSide('uscite');
-             if (!selectedDocType) setSelectedDocType('fattura');
-           }}
+          onClick={(e: React.MouseEvent) => {
+            e.preventDefault();
+            setSelectedSide('uscite');
+            setSelectedDocType(selectedDocType || 'fattura');
+          }}
           sx={(theme: Theme) => ({
             position: 'relative',
             cursor: 'pointer',
@@ -428,6 +404,7 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
     mod_pagamento_pref?: string | null;
   };
   const [fornitoreQuery, setFornitoreQuery] = useState('');
+  const [selectedFornitore, setSelectedFornitore] = useState<FornitoreOption | string | null>(null);
   const { data: fornitoriData } = useSWR('/api/tenants/fornitori');
   const formatFornitoreLabel = (f: FornitoreOption): string =>
     (f.ragione_sociale && f.ragione_sociale.trim())
@@ -472,7 +449,7 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
     // reset form quando cambia commessa o tipo documento
     setForm(getInitialForm(docType));
   }, [commessaId, docType]);
-  const handleReset = () => { setForm(getInitialForm(docType)); setFornitoreQuery(''); };
+  const handleReset = () => { setForm(getInitialForm(docType)); setFornitoreQuery(''); setSelectedFornitore(null); };
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -521,35 +498,56 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
                 options={fornitori}
                 getOptionLabel={(o) => (typeof o === 'string' ? o : formatFornitoreLabel(o as FornitoreOption))}
                 filterOptions={(x) => x as FornitoreOption[]}
-                inputValue={form.fornitore}
+                inputValue={fornitoreQuery}
+                value={selectedFornitore}
                 onInputChange={(_, val) => {
                   setFornitoreQuery(val || '');
-                  setForm((p) => ({ ...p, fornitore: val || '' }));
                 }}
                 onChange={(_, val) => {
-                  if (!val) return;
+                  if (!val) {
+                    // clear fornitore and related prefilled fields
+                    setFornitoreQuery('');
+                    setSelectedFornitore(null);
+                    setForm((p) => {
+                      const normalizedAli = '0';
+                      const { imponibile, iva } = computeDerived(String(p.importo_totale), normalizedAli);
+                      return {
+                        ...p,
+                        fornitore: '',
+                        tipologia: '',
+                        modalita_pagamento: '',
+                        aliquota_iva: normalizedAli,
+                        imponibile,
+                        iva
+                      };
+                    });
+                    return;
+                  }
                   if (typeof val === 'string') {
-                    const base = getInitialForm(docType);
-                    setForm({ ...base, fornitore: val });
+                    setFornitoreQuery(val);
+                    setSelectedFornitore(val);
+                    setForm((p) => ({ ...p, fornitore: val }));
                     return;
                   }
                   const v = val as FornitoreOption;
-                  setForm(() => {
-                    const base = getInitialForm(docType);
+                  setForm((p) => {
                     const rawAli = v.aliquota_iva_predefinita;
                     const normalizedAli = rawAli != null && String(rawAli) !== '' && !Number.isNaN(Number(rawAli))
                       ? String(Number(rawAli))
-                      : base.aliquota_iva;
-                    const derived = computeDerived(String(base.importo_totale), normalizedAli);
+                      : p.aliquota_iva;
+                    const { imponibile, iva } = computeDerived(String(p.importo_totale), normalizedAli);
                     return {
-                      ...base,
+                      ...p,
                       fornitore: formatFornitoreLabel(v),
-                      tipologia: v.tipologia || base.tipologia,
-                      modalita_pagamento: v.mod_pagamento_pref || base.modalita_pagamento,
+                      tipologia: v.tipologia || p.tipologia,
+                      modalita_pagamento: v.mod_pagamento_pref || p.modalita_pagamento,
                       aliquota_iva: normalizedAli,
-                      ...derived
+                      imponibile,
+                      iva
                     };
                   });
+                  setFornitoreQuery(formatFornitoreLabel(v));
+                  setSelectedFornitore(val);
                 }}
                 renderInput={(params) => (
                   <TextField {...params} label="Fornitore" InputLabelProps={{ shrink: true }} required />
@@ -575,35 +573,55 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
             options={fornitori}
             getOptionLabel={(o) => (typeof o === 'string' ? o : formatFornitoreLabel(o as FornitoreOption))}
             filterOptions={(x) => x as FornitoreOption[]}
-            inputValue={form.fornitore}
+            inputValue={fornitoreQuery}
+            value={selectedFornitore}
             onInputChange={(_, val) => {
               setFornitoreQuery(val || '');
-              setForm((p) => ({ ...p, fornitore: val || '' }));
             }}
             onChange={(_, val) => {
-              if (!val) return;
+              if (!val) {
+                setFornitoreQuery('');
+                setSelectedFornitore(null);
+                setForm((p) => {
+                  const normalizedAli = '0';
+                  const { imponibile, iva } = computeDerived(String(p.importo_totale), normalizedAli);
+                  return {
+                    ...p,
+                    fornitore: '',
+                    tipologia: '',
+                    modalita_pagamento: '',
+                    aliquota_iva: normalizedAli,
+                    imponibile,
+                    iva
+                  };
+                });
+                return;
+              }
               if (typeof val === 'string') {
-                const base = getInitialForm(docType);
-                setForm({ ...base, fornitore: val });
+                setFornitoreQuery(val);
+                setSelectedFornitore(val);
+                setForm((p) => ({ ...p, fornitore: val }));
                 return;
               }
               const v = val as FornitoreOption;
-              setForm(() => {
-                const base = getInitialForm(docType);
+              setForm((p) => {
                 const rawAli = v.aliquota_iva_predefinita;
                 const normalizedAli = rawAli != null && String(rawAli) !== '' && !Number.isNaN(Number(rawAli))
                   ? String(Number(rawAli))
-                  : base.aliquota_iva;
-                const derived = computeDerived(String(base.importo_totale), normalizedAli);
+                  : p.aliquota_iva;
+                const { imponibile, iva } = computeDerived(String(p.importo_totale), normalizedAli);
                 return {
-                  ...base,
+                  ...p,
                   fornitore: formatFornitoreLabel(v),
-                  tipologia: v.tipologia || base.tipologia,
-                  modalita_pagamento: v.mod_pagamento_pref || base.modalita_pagamento,
+                  tipologia: v.tipologia || p.tipologia,
+                  modalita_pagamento: v.mod_pagamento_pref || p.modalita_pagamento,
                   aliquota_iva: normalizedAli,
-                  ...derived
+                  imponibile,
+                  iva
                 };
               });
+              setFornitoreQuery(formatFornitoreLabel(v));
+              setSelectedFornitore(val);
             }}
             renderInput={(params) => (
               <TextField {...params} label="Fornitore" InputLabelProps={{ shrink: true }} required />
@@ -714,6 +732,7 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
     mod_pagamento_pref?: string | null;
   };
   const [clienteQuery, setClienteQuery] = useState('');
+  const [selectedCliente, setSelectedCliente] = useState<ClienteOption | string | null>(null);
   const { data: clientiData } = useSWR('/api/tenants/clienti');
   const formatClienteLabel = (c: ClienteOption): string =>
     (c.ragione_sociale && c.ragione_sociale.trim())
@@ -753,7 +772,7 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
     const ivaVal = importo - imponibileVal;
     return { imponibile: imponibileVal.toFixed(2), iva: ivaVal.toFixed(2) };
   };
-  const handleReset = () => { setForm(getInitialForm()); setClienteQuery(''); };
+  const handleReset = () => { setForm(getInitialForm()); setClienteQuery(''); setSelectedCliente(null); };
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -795,35 +814,55 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
             options={clienti}
             getOptionLabel={(o) => (typeof o === 'string' ? o : formatClienteLabel(o as ClienteOption))}
             filterOptions={(x) => x as ClienteOption[]}
-            inputValue={form.cliente}
+            inputValue={clienteQuery}
+            value={selectedCliente}
             onInputChange={(_, val) => {
               setClienteQuery(val || '');
-              setForm((p) => ({ ...p, cliente: val || '' }));
             }}
             onChange={(_, val) => {
-              if (!val) return;
+              if (!val) {
+                setClienteQuery('');
+                setSelectedCliente(null);
+                setForm((p) => {
+                  const normalizedAli = '0';
+                  const { imponibile, iva } = computeDerived(String(p.importo_totale), normalizedAli);
+                  return {
+                    ...p,
+                    cliente: '',
+                    tipologia: '',
+                    modalita_pagamento: '',
+                    aliquota_iva: normalizedAli,
+                    imponibile,
+                    iva
+                  };
+                });
+                return;
+              }
               if (typeof val === 'string') {
-                const base = getInitialForm();
-                setForm({ ...base, cliente: val });
+                setClienteQuery(val);
+                setSelectedCliente(val);
+                setForm((p) => ({ ...p, cliente: val }));
                 return;
               }
               const v = val as ClienteOption;
-              setForm(() => {
-                const base = getInitialForm();
+              setForm((p) => {
                 const rawAli = v.aliquota_iva_predefinita;
                 const normalizedAli = rawAli != null && String(rawAli) !== '' && !Number.isNaN(Number(rawAli))
                   ? String(Number(rawAli))
-                  : base.aliquota_iva;
-                const derived = computeDerived(String(base.importo_totale), normalizedAli);
+                  : p.aliquota_iva;
+                const { imponibile, iva } = computeDerived(String(p.importo_totale), normalizedAli);
                 return {
-                  ...base,
+                  ...p,
                   cliente: formatClienteLabel(v),
-                  tipologia: v.tipologia || base.tipologia,
-                  modalita_pagamento: v.mod_pagamento_pref || base.modalita_pagamento,
+                  tipologia: v.tipologia || p.tipologia,
+                  modalita_pagamento: v.mod_pagamento_pref || p.modalita_pagamento,
                   aliquota_iva: normalizedAli,
-                  ...derived
+                  imponibile,
+                  iva
                 };
               });
+              setClienteQuery(formatClienteLabel(v));
+              setSelectedCliente(val);
             }}
             renderInput={(params) => (
               <TextField {...params} label="Cliente" InputLabelProps={{ shrink: true }} required />
