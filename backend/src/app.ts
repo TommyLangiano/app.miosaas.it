@@ -18,6 +18,7 @@ import testAuthRoutes from './routes/test-auth';
 import userManagementRoutes from './routes/user-management';
 import syncCognitoRoutes from './routes/sync-cognito';
 import profileRoutes from './routes/profile';
+import fileRoutes from './routes/files';
 
 // Import database
 import { db } from './config/db';
@@ -31,7 +32,7 @@ class App {
 
   constructor() {
     this.app = express();
-    this.port = process.env.PORT || 5000;
+    this.port = Number(process.env.PORT) || 5000;
     
     this.initializeMiddlewares();
     this.initializeRoutes();
@@ -144,6 +145,15 @@ class App {
             examples: '/api/tenants/example',
             testDemo: '/api/tenants/test'
           },
+          files: {
+            upload: '/api/files/upload/prepare',
+            download: '/api/files/download/generate',
+            search: '/api/files/search',
+            entity: '/api/files/entity/:entityType/:entityId',
+            recent: '/api/files/recent',
+            shared: '/api/files/shared',
+            stats: '/api/files/stats/upload'
+          },
           company: {
             register: '/api/register-company'
           },
@@ -177,6 +187,9 @@ class App {
     this.app.use('/api/tenants/clienti', clientiRoutes);
     this.app.use('/api/tenants/fornitori', fornitoriRoutes);
     
+    // File management routes (protected)
+    this.app.use('/api/files', fileRoutes);
+    
     // 🧪 Test authentication routes (JWT ↔ DB testing)
     this.app.use('/api/test-auth', testAuthRoutes);
 
@@ -206,10 +219,13 @@ class App {
   }
 
   public listen(): void {
-    this.app.listen(this.port, () => {
-      console.log(`🚀 Server running on http://localhost:${this.port}`);
-      console.log(`📄 Health check: http://localhost:${this.port}/health`);
-      console.log(`📡 API base: http://localhost:${this.port}/api`);
+    const PORT = Number(this.port);
+    const HOST = process.env.HOST || '127.0.0.1'; // forza IPv4 in dev su macOS
+    
+    this.app.listen(PORT, HOST, () => {
+      console.log(`✅ Server listening on http://${HOST}:${PORT}`);
+      console.log(`📄 Health check: http://${HOST}:${PORT}/health`);
+      console.log(`📡 API base: http://${HOST}:${PORT}/api`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   }

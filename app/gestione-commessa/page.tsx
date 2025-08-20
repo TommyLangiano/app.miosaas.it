@@ -485,7 +485,7 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
       const newErrors: Record<string, string> = {};
       if (docType === 'fattura') {
         if (!form.numero_fattura?.trim()) newErrors['numero_fattura'] = 'Campo obbligatorio';
-        if (form.numero_fattura?.trim() && !/^[A-Za-z0-9\-\/]+$/.test(form.numero_fattura.trim())) newErrors['numero_fattura'] = 'Formato non valido';
+        if (form.numero_fattura?.trim() && !/^[A-Za-z0-9\-\/\.\s]+$/.test(form.numero_fattura.trim())) newErrors['numero_fattura'] = 'Formato non valido (solo lettere, numeri, trattini, barre, punti e spazi)';
         if (!form.fornitore?.trim()) newErrors['fornitore'] = 'Campo obbligatorio';
         if (!form.tipologia?.trim()) newErrors['tipologia'] = 'Campo obbligatorio';
         if (form.tipologia && form.tipologia.trim().length < 3) newErrors['tipologia'] = 'Minimo 3 caratteri';
@@ -558,8 +558,109 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
       setFornitoreQuery('');
       setSelectedFornitore(null);
       if (onCreated) onCreated();
-    } catch {
-      // noop
+    } catch (error: unknown) {
+      console.log('🔍 Errore completo dal backend:', error);
+      
+            // Gestione errori Axios - debug completo della struttura
+      console.log('🔍 Tipo di errore:', typeof error);
+      console.log('🔍 Proprietà dell\'errore:', Object.keys(error as object));
+      console.log('🔍 Errore completo (JSON):', JSON.stringify(error, null, 2));
+      
+      let errorCode: string | undefined;
+      let errorMessage: string | undefined;
+      
+      // Prova diversi modi per accedere ai dati
+      if (error && typeof error === 'object') {
+        // Metodo 1: error.response
+        if ('response' in error) {
+          const response = (error as { response?: { status?: number; data?: unknown } }).response;
+          console.log('🔍 Metodo 1 - Response completa:', response);
+          console.log('🔍 Metodo 1 - Response status:', response?.status);
+          console.log('🔍 Metodo 1 - Response data:', response?.data);
+          
+          if (response?.data && typeof response.data === 'object') {
+            const data = response.data as Record<string, unknown>;
+            errorCode = data.code as string | undefined;
+            errorMessage = data.message as string | undefined;
+          }
+        }
+        
+        // Metodo 2: error.data (fallback)
+        if (!errorCode && 'data' in error) {
+          const data = (error as { data?: unknown }).data;
+          console.log('🔍 Metodo 2 - Data diretta:', data);
+          
+          if (data && typeof data === 'object') {
+            const dataObj = data as Record<string, unknown>;
+            errorCode = dataObj.code as string | undefined;
+            errorMessage = dataObj.message as string | undefined;
+          }
+        }
+        
+        // Metodo 3: error.message (fallback)
+        if (!errorMessage && 'message' in error) {
+          errorMessage = (error as { message?: string }).message;
+          console.log('🔍 Metodo 3 - Message diretta:', errorMessage);
+        }
+      }
+      
+      console.log('🔍 Error code estratto:', errorCode);
+      console.log('🔍 Error message estratto:', errorMessage);
+      
+      // Gestione errore numero fattura duplicato
+      if (errorCode === 'DUPLICATE_INVOICE_NUMBER' || 
+          (errorMessage && errorMessage.toLowerCase().includes('numero fattura già esistente'))) {
+        console.log('🔍 Trovato errore numero fattura duplicato (via code o message)');
+        setErrors({ numero_fattura: errorMessage || 'Numero fattura esistente' });
+        scrollToField('usc-numero-fattura');
+      } else {
+        // Gestione errori generici del backend
+        const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        const errorCode = (error as { response?: { data?: { code?: string } } })?.response?.data?.code;
+        
+        console.log('🔍 Error message generico:', errorMessage);
+        console.log('🔍 Error code generico:', errorCode);
+        
+        if (errorMessage) {
+          // Se il backend restituisce un messaggio, mostralo
+          if (errorMessage.toLowerCase().includes('fattura') || errorMessage.toLowerCase().includes('numero') || errorMessage.toLowerCase().includes('duplicat')) {
+            console.log('🔍 Imposto errore numero fattura:', errorMessage);
+            setErrors({ numero_fattura: errorMessage });
+            scrollToField('usc-numero-fattura');
+          } else if (errorMessage.toLowerCase().includes('fornitore')) {
+            console.log('🔍 Imposto errore fornitore:', errorMessage);
+            setErrors({ fornitore: errorMessage });
+            scrollToField('usc-fornitore');
+          } else {
+            // Errore generico
+            console.log('🔍 Mostro errore generico:', errorMessage);
+            enqueueSnackbar(`Errore: ${errorMessage}`, { 
+              variant: 'error',
+              anchorOrigin: { vertical: 'top', horizontal: 'right' },
+              autoHideDuration: 5000
+            });
+          }
+        } else {
+          // Errore generico senza messaggio
+          console.log('🔍 Nessun messaggio di errore, mostro errore generico');
+          
+          // Se abbiamo un messaggio di errore generico, proviamo a renderlo più specifico
+          if (errorMessage && errorMessage.toLowerCase().includes('numero fattura già esistente')) {
+            enqueueSnackbar('Errore, il N. Fattura esiste già. Riprova.', { 
+              variant: 'error',
+              anchorOrigin: { vertical: 'top', horizontal: 'right' },
+              autoHideDuration: 5000
+            });
+          } else {
+            enqueueSnackbar('Errore durante il salvataggio. Riprova.', { 
+              variant: 'error',
+              anchorOrigin: { vertical: 'top', horizontal: 'right' },
+              autoHideDuration: 5000
+            });
+          }
+        }
+        console.error('Errore nella creazione uscita:', error);
+      }
     } finally {
       setSaving(false);
     }
@@ -854,6 +955,19 @@ function UscitaForm({ commessaId, docType, onCreated }: UscitaFormProps) {
         <Button variant="contained" onClick={handleSubmit} disabled={saving}>
           {saving ? 'Salvataggio…' : 'Salva Costo'}
         </Button>
+        {/* Pulsante di test temporaneo per verificare la gestione errori */}
+        <Button 
+          variant="outlined" 
+          color="warning" 
+          onClick={() => {
+            console.log('🧪 Test: Imposto errore numero fattura');
+            setErrors({ numero_fattura: 'Numero fattura già esistente - TEST' });
+            scrollToField('usc-numero-fattura');
+          }}
+          sx={{ ml: 1 }}
+        >
+          Test Errore
+        </Button>
       </Box>
     </Box>
   );
@@ -975,8 +1089,101 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
       setClienteQuery('');
       setSelectedCliente(null);
       if (onCreated) onCreated();
-    } catch {
-      // noop
+    } catch (error: unknown) {
+      console.log('🔍 Errore completo dal backend (entrate):', error);
+      
+      // Gestione errori Axios - debug completo della struttura (entrate)
+      console.log('🔍 Tipo di errore (entrate):', typeof error);
+      console.log('🔍 Proprietà dell\'errore (entrate):', Object.keys(error as object));
+      console.log('🔍 Errore completo (JSON) (entrate):', JSON.stringify(error, null, 2));
+      
+      let errorCode: string | undefined;
+      let errorMessage: string | undefined;
+      
+      // Prova diversi modi per accedere ai dati
+      if (error && typeof error === 'object') {
+        // Metodo 1: error.response
+        if ('response' in error) {
+          const response = (error as { response?: { status?: number; data?: unknown } }).response;
+          console.log('🔍 Metodo 1 - Response completa (entrate):', response);
+          console.log('🔍 Metodo 1 - Response status (entrate):', response?.status);
+          console.log('🔍 Metodo 1 - Response data (entrate):', response?.data);
+          
+          if (response?.data && typeof response.data === 'object') {
+            const data = response.data as Record<string, unknown>;
+            errorCode = data.code as string | undefined;
+            errorMessage = data.message as string | undefined;
+          }
+        }
+        
+        // Metodo 2: error.data (fallback)
+        if (!errorCode && 'data' in error) {
+          const data = (error as { data?: unknown }).data;
+          console.log('🔍 Metodo 2 - Data diretta (entrate):', data);
+          
+          if (data && typeof data === 'object') {
+            const dataObj = data as Record<string, unknown>;
+            errorCode = dataObj.code as string | undefined;
+            errorMessage = dataObj.message as string | undefined;
+          }
+        }
+        
+        // Metodo 3: error.message (fallback)
+        if (!errorMessage && 'message' in error) {
+          errorMessage = (error as { message?: string }).message;
+          console.log('🔍 Metodo 3 - Message diretta (entrate):', errorMessage);
+        }
+      }
+      
+      console.log('🔍 Error code estratto (entrate):', errorCode);
+      console.log('🔍 Error message estratto (entrate):', errorMessage);
+      
+      // Gestione errore numero fattura duplicato
+      if (errorCode === 'DUPLICATE_INVOICE_NUMBER' || 
+          (errorMessage && errorMessage.toLowerCase().includes('numero fattura già esistente'))) {
+        console.log('🔍 Trovato errore numero fattura duplicato (entrate) (via code o message)');
+        setErrors({ numero_fattura: errorMessage || 'Numero fattura esistente' });
+        scrollToField('entr-numero-fattura');
+      } else {
+        // Gestione errori generici del backend
+        const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        
+        if (errorMessage) {
+          // Se il backend restituisce un messaggio, mostralo
+          if (errorMessage.toLowerCase().includes('fattura') || errorMessage.toLowerCase().includes('numero')) {
+            setErrors({ numero_fattura: errorMessage });
+            scrollToField('entr-numero-fattura');
+          } else if (errorMessage.toLowerCase().includes('cliente')) {
+            setErrors({ cliente: errorMessage });
+            scrollToField('entr-cliente');
+          } else {
+            // Errore generico
+            enqueueSnackbar(`Errore: ${errorMessage}`, { 
+              variant: 'error',
+              anchorOrigin: { vertical: 'top', horizontal: 'right' },
+              autoHideDuration: 5000
+            });
+          }
+        } else {
+          // Errore generico senza messaggio
+          
+          // Se abbiamo un messaggio di errore generico, proviamo a renderlo più specifico
+          if (errorMessage && errorMessage.toLowerCase().includes('numero fattura già esistente')) {
+            enqueueSnackbar('Errore, il N. Fattura esiste già. Riprova.', { 
+              variant: 'error',
+              anchorOrigin: { vertical: 'top', horizontal: 'right' },
+              autoHideDuration: 5000
+            });
+          } else {
+            enqueueSnackbar('Errore durante il salvataggio. Riprova.', { 
+              variant: 'error',
+              anchorOrigin: { vertical: 'top', horizontal: 'right' },
+              autoHideDuration: 5000
+            });
+          }
+        }
+        console.error('Errore nella creazione entrata:', error);
+      }
     } finally {
       setSaving(false);
     }
@@ -1137,6 +1344,19 @@ function EntrataForm({ commessaId, onCreated }: EntrataFormProps) {
         <Button variant="outlined" onClick={handleReset} disabled={saving}>Reset Campi</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={saving}>
           {saving ? 'Salvataggio…' : 'Salva Ricavo'}
+        </Button>
+        {/* Pulsante di test temporaneo per verificare la gestione errori */}
+        <Button 
+          variant="outlined" 
+          color="warning" 
+          onClick={() => {
+            console.log('🧪 Test: Imposto errore numero fattura (entrate)');
+            setErrors({ numero_fattura: 'Numero fattura già esistente - TEST' });
+            scrollToField('entr-numero-fattura');
+          }}
+          sx={{ ml: 1 }}
+        >
+          Test Errore
         </Button>
       </Box>
     </Box>
@@ -1543,7 +1763,18 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
             {docType === 'fattura' && (
               <Grid size={{ xs: 12, md: 3 }}>
-                <TextField label="N. Fattura" fullWidth value={editData.numero_fattura || ''} onChange={(e) => setEditData((p) => ({ ...p, numero_fattura: e.target.value }))} InputLabelProps={{ shrink: true }} />
+                <TextField 
+                  label="N. Fattura" 
+                  fullWidth 
+                  value={editData.numero_fattura || ''} 
+                  onChange={(e) => {
+                    setEditData((p) => ({ ...p, numero_fattura: e.target.value }));
+                    setEditErrors((prev) => ({ ...prev, numero_fattura: '' }));
+                  }} 
+                  InputLabelProps={{ shrink: true }}
+                  error={Boolean(editErrors['numero_fattura'])}
+                  helperText={editErrors['numero_fattura'] || ''}
+                />
               </Grid>
             )}
             <Grid size={{ xs: 12, md: docType === 'fattura' ? 5 : 6 }}>
@@ -1764,6 +1995,30 @@ function UsciteTable({ commessaId, version, docType }: { commessaId: string; ver
                 setEditOpen(false);
                 await mutate(swrKey);
                 showBanner('Uscita aggiornata con successo.','success');
+              } catch (error: unknown) {
+                console.log('🔍 Errore completo dal backend (modifica uscite):', error);
+                
+                // Gestione errore numero fattura duplicato
+                if ((error as { response?: { data?: { code?: string; message?: string } } })?.response?.data?.code === 'DUPLICATE_INVOICE_NUMBER') {
+                  setEditErrors({ numero_fattura: (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Errore sconosciuto' });
+                } else {
+                  // Gestione errori generici del backend
+                  const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                  
+                  if (errorMessage) {
+                    // Se il backend restituisce un messaggio, mostralo
+                    if (errorMessage.toLowerCase().includes('fattura') || errorMessage.toLowerCase().includes('numero')) {
+                      setEditErrors({ numero_fattura: errorMessage });
+                    } else {
+                      // Errore generico
+                      showBanner(`Errore: ${errorMessage}`, 'error');
+                    }
+                  } else {
+                    // Errore generico senza messaggio
+                    showBanner('Errore durante l\'aggiornamento.','error');
+                  }
+                  console.error('Errore nell\'aggiornamento uscita:', error);
+                }
               } finally {
                 setSavingEdit(false);
               }
@@ -2133,7 +2388,18 @@ function EntrateTable({ commessaId, version }: { commessaId: string; version: nu
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid size={{ xs: 12, md: 3 }}>
-              <TextField label="N. Fattura" fullWidth value={editData.numero_fattura || ''} onChange={(e) => setEditData((p) => ({ ...p, numero_fattura: e.target.value }))} InputLabelProps={{ shrink: true }} />
+              <TextField 
+                label="N. Fattura" 
+                fullWidth 
+                value={editData.numero_fattura || ''} 
+                onChange={(e) => {
+                  setEditData((p) => ({ ...p, numero_fattura: e.target.value }));
+                  setEditErrors((prev) => ({ ...prev, numero_fattura: '' }));
+                }} 
+                InputLabelProps={{ shrink: true }}
+                error={Boolean(editErrors['numero_fattura'])}
+                helperText={editErrors['numero_fattura'] || ''}
+              />
             </Grid>
             <Grid size={{ xs: 12, md: 5 }}>
               <Autocomplete<ClienteEditOption, false, false, true>
@@ -2280,6 +2546,30 @@ function EntrateTable({ commessaId, version }: { commessaId: string; version: nu
                 setEditOpen(false);
                 await mutate(swrKey);
                 showBanner('Ricavo aggiornato con successo.','success');
+              } catch (error: unknown) {
+                console.log('🔍 Errore completo dal backend (modifica entrate):', error);
+                
+                // Gestione errore numero fattura duplicato
+                if ((error as { response?: { data?: { code?: string; message?: string } } })?.response?.data?.code === 'DUPLICATE_INVOICE_NUMBER') {
+                  setEditErrors({ numero_fattura: (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Errore sconosciuto' });
+                } else {
+                  // Gestione errori generici del backend
+                  const errorMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                  
+                  if (errorMessage) {
+                    // Se il backend restituisce un messaggio, mostralo
+                    if (errorMessage.toLowerCase().includes('fattura') || errorMessage.toLowerCase().includes('numero')) {
+                      setEditErrors({ numero_fattura: errorMessage });
+                    } else {
+                      // Errore generico
+                      showBanner(`Errore: ${errorMessage}`, 'error');
+                    }
+                  } else {
+                    // Errore generico senza messaggio
+                    showBanner('Errore durante l\'aggiornamento.','error');
+                  }
+                  console.error('Errore nell\'aggiornamento ricavo:', error);
+                }
               } finally {
                 setSavingEdit(false);
               }

@@ -20,8 +20,11 @@ interface DatabaseConfig {
 // Configurazione del database basata sull'ambiente
 const getDatabaseConfig = (): DatabaseConfig => {
   const isProduction = process.env.NODE_ENV === 'production';
-  const isAWS = process.env.AWS_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME;
+  // Solo se siamo effettivamente in produzione o su AWS Lambda, non solo se AWS_REGION è impostato
+  const isAWS = process.env.NODE_ENV === 'production' && (process.env.AWS_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME);
   const isAWSRDS = process.env.DB_HOST?.includes('rds.amazonaws.com') || false;
+
+  console.log('🔍 Debug SSL decision:', { isProduction, isAWS, isAWSRDS });
 
   // Configurazione base
   const config: DatabaseConfig = {
@@ -41,13 +44,20 @@ const getDatabaseConfig = (): DatabaseConfig => {
       rejectUnauthorized: false, // Per AWS RDS
       ca: process.env.DB_SSL_CA, // Certificato CA se necessario
     };
+    console.log('🔒 SSL abilitato per produzione/AWS');
+  } else {
+    // In sviluppo locale, disabilita SSL
+    config.ssl = false;
+    console.log('🔓 SSL disabilitato per sviluppo locale');
   }
 
   // URL completo se fornito (per Amplify)
   if (process.env.DATABASE_URL) {
+    console.log('🔗 Usando DATABASE_URL, parsing connection string...');
     return parseConnectionString(process.env.DATABASE_URL);
   }
 
+  console.log('🔧 Config finale SSL:', config.ssl);
   return config;
 };
 
@@ -55,13 +65,21 @@ const getDatabaseConfig = (): DatabaseConfig => {
 const parseConnectionString = (connectionString: string): DatabaseConfig => {
   try {
     const url = new URL(connectionString);
+    const isProduction = process.env.NODE_ENV === 'production';
+    // Solo se siamo effettivamente in produzione o su AWS Lambda
+    const isAWS = process.env.NODE_ENV === 'production' && (process.env.AWS_REGION || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    const isAWSRDS = process.env.DB_HOST?.includes('rds.amazonaws.com') || false;
+    
+    const sslConfig = (isProduction || isAWS || isAWSRDS) ? { rejectUnauthorized: false } : false;
+    console.log('🔗 Connection string SSL config:', { ssl: sslConfig, isProduction, isAWS, isAWSRDS });
+    
     return {
       host: url.hostname,
       port: parseInt(url.port) || 5432,
       database: url.pathname.slice(1), // Rimuove il '/' iniziale
       user: url.username,
       password: url.password,
-      ssl: url.searchParams.get('ssl') !== 'false' ? { rejectUnauthorized: false } : false,
+      ssl: sslConfig,
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
@@ -89,6 +107,14 @@ const createPool = (): Pool => {
   if (pool) {
     return pool;
   }
+
+  // Debug: mostra la configurazione SSL
+  console.log('🔧 Database SSL config:', {
+    ssl: dbConfig.ssl,
+    host: dbConfig.host,
+    isProduction: process.env.NODE_ENV === 'production',
+    hasDATABASE_URL: !!process.env.DATABASE_URL
+  });
 
   pool = new Pool(poolConfig);
 

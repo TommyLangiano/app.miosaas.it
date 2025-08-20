@@ -24,12 +24,12 @@ const nextConfig: NextConfig = {
     }
     // fallback dev/local
     return [
-      { source: '/api/register', destination: 'http://localhost:5001/api/register' },
-      { source: '/api/demo/:path*', destination: 'http://localhost:5001/api/demo/:path*' },
-      { source: '/api/auth/:path*', destination: 'http://localhost:5001/api/auth/:path*' },
-      { source: '/api/tenants/:path*', destination: 'http://localhost:5001/api/tenants/:path*' },
-      { source: '/api/:path*', destination: 'http://localhost:5001/api/:path*' },
-      { source: '/health', destination: 'http://localhost:5001/health' }
+      { source: '/api/register', destination: 'http://127.0.0.1:5000/api/register' },
+      { source: '/api/demo/:path*', destination: 'http://127.0.0.1:5000/api/demo/:path*' },
+      { source: '/api/auth/:path*', destination: 'http://127.0.0.1:5000/api/auth/:path*' },
+      { source: '/api/tenants/:path*', destination: 'http://127.0.0.1:5000/api/tenants/:path*' },
+      { source: '/api/:path*', destination: 'http://127.0.0.1:5000/api/:path*' },
+      { source: '/health', destination: 'http://127.0.0.1:5000/health' }
     ];
   },
   // Configurazione per il server

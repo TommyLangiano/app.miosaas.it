@@ -124,8 +124,26 @@ router.post('/', async (req: AuthedTenantRequest, res: Response): Promise<void> 
     const sql = `INSERT INTO entrate (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`;
     const result = await req.db!.query(sql, values);
     res.status(201).json({ status: 'success', data: result.rows[0] });
+    return; // Esplicito return per sicurezza
   } catch (error) {
     console.error('Errore POST entrate:', error);
+    
+    // Gestione specifica per numero fattura duplicato
+    if (error instanceof Error) {
+      const errorMessage = error.message;
+      if (errorMessage.includes('uniq_entrate_company_invoice') || errorMessage.includes('duplicate key value violates unique constraint')) {
+        console.log('🔍 Backend: Rilevato numero fattura duplicato (entrate), restituisco errore 400');
+        res.status(400).json({ 
+          status: 'error', 
+          message: 'Numero fattura esistente',
+          code: 'DUPLICATE_INVOICE_NUMBER'
+        });
+        return;
+      }
+    }
+    
+    // Se arriviamo qui, è un errore generico
+    console.log('🔍 Backend: Errore generico (entrate), restituisco 500');
     res.status(500).json({ status: 'error', message: 'Errore nella creazione entrata' });
   }
 });
